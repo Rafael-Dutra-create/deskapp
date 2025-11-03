@@ -25,12 +25,13 @@ func NewConfig() *Config {
 
 
 func (c *Config) Setup() {
+	logger := utils.NewLogger()
 	if c.Port == "" {
 		c.Port = "8006"
 	}
 
 	if c.DBDSN == "" {
-        c.DBDSN = "postgresql://root:gjdpakfnFpL0z1Kps@db01.controllab.com:5432/dados_prod_rc39?sslmode=disable"
+        logger.Warning("Nenhum Banco conectado!")
     }
 }
 
