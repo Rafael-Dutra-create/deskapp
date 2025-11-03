@@ -1,0 +1,213 @@
+{{define "title"}}Dashboard - Meu App{{end}}
+
+{{define "page_css"}}
+<link rel="stylesheet" href="/static/css/pages/home.css">
+{{end}}
+
+{{define "content"}}
+<div class="dashboard">
+    <!-- Header do Dashboard -->
+    <div class="dashboard-header">
+        <h1>Dashboard</h1>
+        {{if .User}}
+            <div class="user-welcome">
+                <span>Bem-vindo, <strong>{{.User.Name}}</strong>!</span>
+                <div class="user-badge">
+                    <span class="user-role">{{.User.Role}}</span>
+                    <span class="user-email">{{.User.Email}}</span>
+                </div>
+            </div>
+        {{else}}
+            <div class="user-welcome">
+                <span>Bem-vindo, Visitante!</span>
+            </div>
+        {{end}}
+    </div>
+
+    <!-- Cards de Estatísticas -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">📁</div>
+            <div class="stat-content">
+                <h3>{{.Dashboard.stats.projects}}</h3>
+                <p>Projetos</p>
+            </div>
+            <div class="stat-trend up">+12%</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">✅</div>
+            <div class="stat-content">
+                <h3>{{.Dashboard.stats.tasks}}</h3>
+                <p>Tarefas</p>
+            </div>
+            <div class="stat-trend up">+8%</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">🔔</div>
+            <div class="stat-content">
+                <h3>{{.Dashboard.stats.notifications}}</h3>
+                <p>Notificações</p>
+            </div>
+            <div class="stat-trend neutral">0%</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">👥</div>
+            <div class="stat-content">
+                <h3>4</h3>
+                <p>Membros</p>
+            </div>
+            <div class="stat-trend up">+1</div>
+        </div>
+    </div>
+
+    <!-- Grid Principal -->
+    <div class="dashboard-grid">
+        <!-- Atividade Recente -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2>Atividade Recente</h2>
+                <span class="card-badge">{{len .Dashboard.recent_activity}}</span>
+            </div>
+            <div class="activity-list">
+                {{range .Dashboard.recent_activity}}
+                <div class="activity-item">
+                    <div class="activity-dot"></div>
+                    <div class="activity-content">
+                        <p>{{.}}</p>
+                        <span class="activity-time">há alguns minutos</span>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+            <div class="card-footer">
+                <a href="#" class="view-all-link">Ver todas as atividades →</a>
+            </div>
+        </div>
+
+        <!-- Progresso de Projetos -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2>Progresso de Projetos</h2>
+            </div>
+            <div class="progress-list">
+                <div class="progress-item">
+                    <div class="progress-info">
+                        <span class="project-name">Website Corporativo</span>
+                        <span class="progress-percent">75%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 75%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-info">
+                        <span class="project-name">App Mobile</span>
+                        <span class="progress-percent">45%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 45%"></div>
+                    </div>
+                </div>
+                <div class="progress-item">
+                    <div class="progress-info">
+                        <span class="project-name">Sistema de Pagamento</span>
+                        <span class="progress-percent">90%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 90%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarefas Pendentes -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2>Tarefas Pendentes</h2>
+                <span class="card-badge">3</span>
+            </div>
+            <div class="task-list">
+                <div class="task-item priority-high">
+                    <div class="task-checkbox"></div>
+                    <div class="task-content">
+                        <p>Revisar documentação do projeto</p>
+                        <span class="task-due">Vence hoje</span>
+                    </div>
+                </div>
+                <div class="task-item priority-medium">
+                    <div class="task-checkbox"></div>
+                    <div class="task-content">
+                        <p>Atualizar dependências</p>
+                        <span class="task-due">Amanhã</span>
+                    </div>
+                </div>
+                <div class="task-item priority-low">
+                    <div class="task-checkbox"></div>
+                    <div class="task-content">
+                        <p>Agendar reunião de sprint</p>
+                        <span class="task-due">Esta semana</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="add-task-btn">+ Adicionar Tarefa</button>
+            </div>
+        </div>
+
+        <!-- Status do Sistema -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h2>Status do Sistema</h2>
+            </div>
+            <div class="system-status">
+                <div class="status-item online">
+                    <div class="status-indicator"></div>
+                    <span>Servidor Web</span>
+                    <span class="status-badge">Online</span>
+                </div>
+                <div class="status-item online">
+                    <div class="status-indicator"></div>
+                    <span>Banco de Dados</span>
+                    <span class="status-badge">Online</span>
+                </div>
+                <div class="status-item maintenance">
+                    <div class="status-indicator"></div>
+                    <span>Serviço de Email</span>
+                    <span class="status-badge">Manutenção</span>
+                </div>
+                <div class="status-item online">
+                    <div class="status-indicator"></div>
+                    <span>API Externa</span>
+                    <span class="status-badge">Online</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ações Rápidas -->
+    <div class="quick-actions">
+        <h2>Ações Rápidas</h2>
+        <div class="actions-grid">
+            <button class="action-btn">
+                <span class="action-icon">➕</span>
+                <span>Novo Projeto</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">📊</span>
+                <span>Relatórios</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">👥</span>
+                <span>Convidar Membro</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">⚙️</span>
+                <span>Configurações</span>
+            </button>
+        </div>
+    </div>
+</div>
+{{end}}

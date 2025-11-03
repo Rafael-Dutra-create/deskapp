@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ block "title" . }}Meu App{{ end }}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+     <!-- CSS de Componentes -->
+    <link rel="stylesheet" href="/static/css/components/buttons.css">
+    <link rel="stylesheet" href="/static/css/components/cards.css">
+    <link rel="stylesheet" href="/static/css/components/navigation.css">
+    
+    <!-- CSS Específico da Página -->
+    {{ block "page_css" . }}{{ end }}
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Home</a>
+        </nav>
+    </header>
+    <main>
+        {{ block "content" . }}{{ end }}
+    </main>
+     <footer>
+        <div class="footer-content">
+            <p>&copy; 2025 MeuApp. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+    <!-- Scripts Globais -->
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/js/theme.js"></script>
+    <script src="/static/js/navigation.js"></script>
+    <script src="/static/js/main.js"></script>
+
+    <!-- Scripts Específicos da Página -->
+    {{ block "page_js" . }}{{ end }}
+
+    <!-- Scripts Extra -->
+    {{ block "extra_js" . }}{{ end }}
+
+    <!-- Inicialização -->
+    <script>
+        // Inicialização quando o DOM estiver pronto
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar componentes globais
+            if (typeof ThemeManager !== 'undefined') {
+                ThemeManager.init();
+            }
+            
+            if (typeof Navigation !== 'undefined') {
+                Navigation.init();
+            }
+            
+            
+            // Log para debug
+            console.log('🚀 MeuApp inicializado com sucesso!');
+        });
+    </script>
+</body>
+</html>

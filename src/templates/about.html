@@ -1,0 +1,126 @@
+{{define "title"}}Sobre - MeuApp{{end}}
+
+{{define "page_css"}}
+<link rel="stylesheet" href="/static/css/pages/about.css">
+{{end}}
+
+{{define "content"}}
+<div class="about-page">
+    <!-- Header Hero -->
+    <section class="about-hero">
+        <div class="hero-content">
+            <h1>{{.Title}}</h1>
+            <p class="hero-description">{{.Text}}</p>
+            <div class="version-info">
+                <span class="version-badge">v{{.Version}}</span>
+                <span class="build-date">Build: {{.BuildDate}}</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Grid -->
+    <section class="features-section">
+        <h2>Recursos Principais</h2>
+        <div class="features-grid">
+            {{range .Features}}
+            <div class="feature-card">
+                <div class="feature-icon">{{.icon}}</div>
+                <h3>{{.title}}</h3>
+                <p>{{.description}}</p>
+            </div>
+            {{end}}
+        </div>
+    </section>
+
+    <!-- Tech Stack -->
+    <section class="tech-section">
+        <h2>Stack Tecnológico</h2>
+        <div class="tech-grid">
+            {{range $category, $items := .TechStack}}
+            <div class="tech-category">
+                <h3>{{$category}}</h3>
+                <ul class="tech-list">
+                    {{range $items}}
+                    <li>{{.}}</li>
+                    {{end}}
+                </ul>
+            </div>
+            {{end}}
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="team-section">
+        <h2>Nossa Equipe</h2>
+        <div class="team-grid">
+            {{range .Team}}
+            <div class="team-card">
+                <div class="team-avatar">{{.avatar}}</div>
+                <div class="team-info">
+                    <h3>{{.name}}</h3>
+                    <p class="team-role">{{.role}}</p>
+                    <p class="team-email">{{.email}}</p>
+                    <p class="team-expertise">{{.expertise}}</p>
+                </div>
+            </div>
+            {{end}}
+        </div>
+    </section>
+
+    <!-- Statistics -->
+    {{if .ShowDetailedInfo}}
+    <section class="stats-section">
+        <h2>Estatísticas do Sistema</h2>
+        <div class="stats-grid">
+            <div class="stat-item">
+                <h3>Performance</h3>
+                <div class="stat-details">
+                    <span>Tempo de Resposta: <strong>{{.Stats.performance.response_time_ms}}ms</strong></span>
+                    <span>Uptime: <strong>{{.Stats.performance.uptime_percentage}}%</strong></span>
+                    <span>Usuários Concorrentes: <strong>{{.Stats.performance.concurrent_users}}</strong></span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <h3>Métricas de Código</h3>
+                <div class="stat-details">
+                    <span>Linhas de Código: <strong>{{.Stats.code_metrics.lines_of_code}}</strong></span>
+                    <span>Cobertura de Testes: <strong>{{.Stats.code_metrics.test_coverage}}%</strong></span>
+                    <span>Contribuidores: <strong>{{.Stats.code_metrics.active_contributors}}</strong></span>
+                </div>
+            </div>
+            <div class="stat-item">
+                <h3>Uso</h3>
+                <div class="stat-details">
+                    <span>Requisições/Dia: <strong>{{.Stats.usage.daily_requests}}</strong></span>
+                    <span>Sessões Ativas: <strong>{{.Stats.usage.active_sessions}}</strong></span>
+                    <span>Dados Processados: <strong>{{.Stats.usage.data_processed_mb}} MB</strong></span>
+                </div>
+            </div>
+        </div>
+    </section>
+    {{end}}
+
+    <!-- Call to Action -->
+    <section class="cta-section">
+        <div class="cta-content">
+            <h2>Gostou do que viu?</h2>
+            <p>Esta aplicação é um exemplo de como Go pode ser usado para criar aplicações web modernas e eficientes.</p>
+            <div class="cta-buttons">
+                <a href="/" class="btn btn-primary">Voltar ao Dashboard</a>
+                <button onclick="showTechnicalDetails()" class="btn btn-secondary">
+                    {{if .ShowDetailedInfo}}Ocultar Detalhes{{else}}Mostrar Detalhes Técnicos{{end}}
+                </button>
+            </div>
+        </div>
+    </section>
+</div>
+{{end}}
+
+{{define "page_js"}}
+<script src="/static/js/pages/about.js"></script>
+{{end}}
+
+{{define "init_script"}}
+// Inicialização específica da página About
+AboutPage.init();
+{{end}}
