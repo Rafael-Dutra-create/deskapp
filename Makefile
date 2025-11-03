@@ -57,7 +57,13 @@ tablemap:
 clean:
 	@echo "🧹 Limpando binários..."
 	rm -rf bin/
+	rm *.out
+	rm coverage.html
 	go clean --cache
+
+coverprofile:
+	go test -coverprofile=coverage.out ./... 
+
 
 # Desenvolvimento com auto-reload (se tiver air instalado)
 dev:
@@ -94,8 +100,8 @@ help:
 	@echo ""
 	@echo "Comandos disponíveis:"
 	@echo "  run           - Executar a aplicação (go run ./src)"
-	@echo "  create-app    - Criar um novo app (go run ./src/internal/cmd/createapp)"
-	@echo "  create-app-alt- Criar app alternativo (go run ./src/internal/scripts/create_app.go)"
+	@echo "  createapp     - Criar um novo app (go run ./src/internal/cmd/createapp)"
+	@echo "  tablemap      - Criar um novo model (go run ./src/internal/cmd/createapp)"
 	@echo "  deps          - Instalar/atualizar dependências"
 	@echo "  build         - Build da aplicação"
 	@echo "  clean         - Limpar binários"
