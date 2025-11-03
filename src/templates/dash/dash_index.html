@@ -30,7 +30,7 @@
             <h2>Rodadas Programadas (Ano 2026)</h2>
 
             {{if .Rodadas}}
-            <table class="data-table">
+            <table class="table table-hover data-table">
                 <thead>
                     <tr>
                         <th>ID Rodada</th>
@@ -50,7 +50,7 @@
                         <td>{{.envio}}</td>
                         <td>{{.data_ini}}</td>
                         <td>{{.data_fim}}</td>
-                        <td>{{if .participa_cumulativo}}Sim ✅{{else}}Não ❌{{end}}</td>
+                        <td class="cursor-pointer">{{if .participa_cumulativo}}Sim ✅{{else}}Não ❌{{end}}</td>
                         <td>{{if .especial}}Sim 🌟{{else}}Não ❌{{end}}</td>
                     </tr>
                     {{end}}

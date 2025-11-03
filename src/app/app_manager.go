@@ -216,7 +216,11 @@ func (am *AppManager) Init() {
 	host := fmt.Sprintf("http://localhost:%s", am.cfg.Port)
 
 	// Abrir o navegador automaticamente
-	go func() { openBrowser(host) }()
+	go func() { 
+		if am.GetMode() == utils.RELEASE {
+			openBrowser(host)
+		}
+		 }()
 
 	am.logger.Infof("Servidor rodando em %s", host)
 
