@@ -2,33 +2,38 @@ package main
 
 import (
 	"deskapp/src/app"
-	"deskapp/src/apps/auth"
 	"deskapp/src/apps/core"
 	"deskapp/src/apps/dash"
+	"deskapp/src/internal/config"
+	"deskapp/src/internal/database"
 	"deskapp/src/internal/utils"
-	"flag"
+
+	"github.com/joho/godotenv"
 )
 
-var modeArg string
+var logger *utils.Logger
 
 func init() {
-	flag.StringVar(&modeArg, "mode", "RELEASE", "DEBUG or RELEASE")
-	flag.Parse()
+	err := godotenv.Load()
+	logger = utils.NewLogger() 
+	if err != nil {
+		logger.Warning("Não foi possível ler o .env")
+	}
 }
 
 func main() {
-	mode := utils.RELEASE
-
-	if modeArg == utils.DEBUG.String() {
-		mode = utils.DEBUG
+	cfg := config.NewConfig()
+	dbConn, err := database.InitDB(cfg.DBDSN)
+	if err != nil {
+		logger.Warningf("Falha ao conectar com banco: %v", err)
 	}
+	defer dbConn.Close()
 
-	logger := utils.NewLogger() 
-	app := app.NewAppManager(logger, mode)
-	app.SetupStatic()
-	app.RegisterApp(core.NewCoreApp(logger, mode))
-	app.RegisterApp(auth.NewAuthApp(logger, mode))
-	app.RegisterApp(dash.NewDashApp(logger, mode))
+
+	
+	app := app.NewAppManager(logger, cfg, StaticFS, TemplateFS)
+	app.RegisterApp(core.NewCoreApp(logger, cfg))
+	app.RegisterApp(dash.NewDashApp(logger, cfg))
 	
 
 	app.RegisterAllRoutes()

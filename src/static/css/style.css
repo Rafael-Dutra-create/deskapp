@@ -5,6 +5,18 @@
     box-sizing: border-box;
 }
 
+:root {
+    --primary-color: #007bff; /* Azul */
+    --secondary-color: #6c757d; /* Cinza */
+    --success-color: #28a745; /* Verde */
+    --warning-color: #ffc107; /* Amarelo */
+    --danger-color: #dc3545; /* Vermelho */
+    --background-light: #f4f7f6;
+    --card-background: #ffffff;
+    --border-color: #e2e6ea;
+    --shadow-light: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);

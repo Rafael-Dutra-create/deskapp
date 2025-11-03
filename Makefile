@@ -15,15 +15,6 @@ run:
 	@echo "🚀 Iniciando $(APP_NAME)..."
 	go run $(SRC_DIR)
 
-# Criar um novo app
-create-app:
-	@echo "📱 Criando novo app..."
-	go run $(CMD_DIR)/createapp
-
-# Comando alternativo para criar app (usando scripts diretamente)
-create-app-alt:
-	@echo "📱 Criando novo app (alternativo)..."
-	go run $(SCRIPTS_DIR)/create_app.go
 
 # Instalar dependências
 deps:
@@ -36,10 +27,37 @@ build:
 	@echo "🔨 Buildando $(APP_NAME)..."
 	go build -o bin/$(APP_NAME) $(SRC_DIR)
 
+# NOVO - Build para Windows (amd64)
+build-windows:
+	@echo "🔨 Buildando $(APP_NAME) para Windows (amd64)..."
+	GOOS=windows GOARCH=amd64 go build -o bin/$(APP_NAME).exe $(SRC_DIR)
+
+# NOVO - Build para Linux (amd64)
+build-linux:
+	@echo "🔨 Buildando $(APP_NAME) para Linux (amd64)..."
+	GOOS=linux GOARCH=amd64 go build -o bin/$(APP_NAME) $(SRC_DIR)
+
+# NOVO - Build para macOS (amd64)
+build-macos:
+	@echo "🔨 Buildando $(APP_NAME) para macOS (amd64)..."
+	GOOS=darwin GOARCH=amd64 go build -o bin/$(APP_NAME) $(SRC_DIR)
+
+# Criar um novo app (executando o script alternativo, se existir)
+createapp:
+	@echo "📱 Criando novo app (alternativo)..."
+	go run $(CMD_DIR)/createapp/main.go
+    
+# Mapear tabela (executando o script)
+tablemap:
+	@echo "🗺️ Mapeando tabela para struct..."
+	go run $(CMD_DIR)/table_map/main.go
+
+
 # Limpar binários
 clean:
 	@echo "🧹 Limpando binários..."
 	rm -rf bin/
+	go clean --cache
 
 # Desenvolvimento com auto-reload (se tiver air instalado)
 dev:

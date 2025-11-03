@@ -31,7 +31,7 @@ func (bc *BaseController) GetName() string {
 
 // Render implementa IController - renderiza templates com dados
 func (bc *BaseController) Render(w http.ResponseWriter, template string, data map[string]interface{}) {
-	if bc.app.GetMode() == utils.DEBUG {
+	if bc.app.GetConfig().GetMode() == utils.DEBUG {
 		bc.app.GetLogger().Infof("[%s] Renderizando template: %s", bc.name, template)
 	}
 
@@ -49,7 +49,7 @@ func (bc *BaseController) Render(w http.ResponseWriter, template string, data ma
 
 // JSON implementa IController - envia resposta JSON
 func (bc *BaseController) JSON(w http.ResponseWriter, statusCode int, data interface{}) {
-	if bc.app.GetMode() == utils.DEBUG {
+	if bc.app.GetConfig().GetMode() == utils.DEBUG {
 		bc.app.GetLogger().Infof("[%s] Enviando resposta JSON - Status: %d", bc.name, statusCode)
 	}
 

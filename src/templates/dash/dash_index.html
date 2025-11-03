@@ -1,0 +1,65 @@
+{{template "base" .}}
+{{define "title"}}{{.Name}} - DeskApp{{end}}
+
+{{define "page_css"}}
+<link rel="stylesheet" href="/static/{{.LowerName}}/css/style.css">
+{{end}}
+
+{{define "content"}}
+<div class="{{.LowerName}}-container">
+    <header class="app-header">
+        <h1><span style="color: black !important;">🎯</span> App {{.Name}}</h1>
+        <p>Bem-vindo ao app {{.Name}}</p>
+    </header>
+
+    <main class="app-content">
+        <div class="welcome-card">
+            <h2>✅ App Criado com Sucesso!</h2>
+            <p>Seu app <strong>{{.Name}}</strong> foi criado e está pronto para desenvolvimento.</p>
+
+            <div class="core-features">
+                <h3>🚀 Integrado com a Estrutura Core</h3>
+                <p>Este app está integrado com a estrutura Core do projeto DeskApp.</p>
+                <ul>
+                    <li><strong>BaseController</strong> - Herda da estrutura base de controllers</li>
+                    <li><strong>Sistema de Views</strong> - Templates unificados e organizados</li>
+                    <li><strong>Logging Consistente</strong> - Sistema de logging padronizado</li>
+                    <li><strong>Gerenciamento de Rotas</strong> - Sistema automático de rotas</li>
+                </ul>
+            </div>
+            <h2>Rodadas Programadas (Ano 2026)</h2>
+
+            {{if .Rodadas}}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID Rodada</th>
+                        <th>Ano</th>
+                        <th>Envio</th>
+                        <th>Data Início</th>
+                        <th>Data Fim</th>
+                        <th>Cumulativo</th>
+                        <th>Especial</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{range .Rodadas}}
+                    <tr>
+                        <td>{{.id_rodada}}</td>
+                        <td>{{.ano}}</td>
+                        <td>{{.envio}}</td>
+                        <td>{{.data_ini}}</td>
+                        <td>{{.data_fim}}</td>
+                        <td>{{if .participa_cumulativo}}Sim ✅{{else}}Não ❌{{end}}</td>
+                        <td>{{if .especial}}Sim 🌟{{else}}Não ❌{{end}}</td>
+                    </tr>
+                    {{end}}
+                </tbody>
+            </table>
+            {{else}}
+            <p class="text-warning">Não há dados de rodadas disponíveis ou houve um erro no carregamento.</p>
+            {{end}}
+        </div>
+    </main>
+</div>
+{{end}}

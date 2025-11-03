@@ -1,6 +1,9 @@
 package core
 
-import "net/http"
+import (
+	"github.com/gin-gonic/gin"
+)
 
-func (a *CoreApp) RegisterRoutes(mux *http.ServeMux) {
+func (a *CoreApp) RegisterRoutes(mux *gin.Engine) {
+	
 }

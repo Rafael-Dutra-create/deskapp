@@ -1,10 +1,16 @@
 package controller
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
 	"deskapp/src/app"
 	"deskapp/src/apps/core/controller"
 	"deskapp/src/apps/core/view"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type DashController struct {
@@ -12,74 +18,47 @@ type DashController struct {
 }
 
 func NewDashController(app app.AppInterface, view *view.View) *DashController {
+
 	base := controller.NewBaseController(app, view, "dash controller")
 	return &DashController{
 		BaseController: base,
+		// dashService: dashService,
 	}
 }
 
-func (c *DashController) Index(w http.ResponseWriter, r *http.Request) {
+// 1. Index - Substitui w e r por *gin.Context e usa ctx.HTML
+func (c *DashController) Index(ctx *gin.Context) {
 	data := map[string]interface{}{
-		"Title":       "dash",
-		"Page":        "dash",
-		"ActiveMenu":  "dash",
-		"Message":     "Bem-vindo ao app dash",
-	}
-	c.Render(w, "dash/index.html", data)
+        "Title":      "dash",
+        "Page":       "dash",
+        "ActiveMenu": "dash",
+        "Name":       "Dash",
+        "LowerName":  "dash",
+    }
+
+    resp, err := http.Get("https://estatapi.controllab.com/rodadas/mod/368?total=1&ano[]=2026")
+    if err != nil {
+        c.GetLogger().Warningf("falha na requisição da API: %v", err)
+        data["Message"] = "Erro ao carregar dados da API."
+    } else {
+        defer resp.Body.Close()
+
+        // 🚨 MUDANÇA CRÍTICA: Decodificar para uma lista (slice) de mapas
+        var rodadasData []map[string]interface{} // <-- Novo tipo
+        body, err := io.ReadAll(resp.Body)
+        
+        if err != nil {
+            // ... (log de erro de leitura do corpo)
+            data["Message"] = "Erro ao ler corpo da resposta."
+        } else if err := json.Unmarshal(body, &rodadasData); err != nil { // <-- Decodifica para a lista
+            c.GetLogger().Warningf("falha ao decodificar JSON: %v", err)
+            data["Message"] = "Erro ao decodificar dados da API."
+        } else {
+            data["Message"] = fmt.Sprintf("Dados carregados com sucesso! Total: %d", len(rodadasData))
+            // 🚨 INJETA A LISTA NO MAPA DE DADOS DO TEMPLATE
+            data["Rodadas"] = rodadasData 
+        }
+    }
+	ctx.HTML(http.StatusOK, "dash_index", data)
 }
 
-func (c *DashController) GetDash(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
-		"data": []map[string]interface{}{
-			{
-				"id":   "1",
-				"name": "Exemplo dash 1",
-			},
-			{
-				"id":   "2", 
-				"name": "Exemplo dash 2",
-			},
-		},
-		"total": 2,
-		"app":   "dash",
-	})
-}
-
-func (c *DashController) CreateDash(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		c.JSON(w, http.StatusMethodNotAllowed, map[string]string{
-			"error": "Método não permitido",
-		})
-		return
-	}
-
-	c.JSON(w, http.StatusCreated, map[string]interface{}{
-		"message": "dash criado com sucesso",
-		"app":     "dash",
-		"id":      "12345",
-	})
-}
-
-func (c *DashController) UpdateDash(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
-		"message": "dash atualizado com sucesso",
-		"app":     "dash",
-	})
-}
-
-func (c *DashController) DeleteDash(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
-		"message": "dash deletado com sucesso", 
-		"app":     "dash",
-	})
-}
-
-// APIHandler - Exemplo de endpoint de API
-func (c *DashController) APIHandler(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
-		"status":  "success",
-		"app":     "dash",
-		"version": "1.0.0",
-		"data":    "Dados da API do app dash",
-	})
-}

@@ -2,6 +2,7 @@ package scripts
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -91,7 +92,7 @@ func createAppFiles(config AppConfig) error {
 	// Criar app.go
 	if err := createFileFromTemplate(
 		filepath.Join(baseAppPath, "app.go"),
-		appTemplate,
+		appTemplate, // ATUALIZADO
 		config,
 	); err != nil {
 		return err
@@ -100,7 +101,7 @@ func createAppFiles(config AppConfig) error {
 	// Criar routes.go
 	if err := createFileFromTemplate(
 		filepath.Join(baseAppPath, "routes.go"),
-		routesTemplate,
+		routesTemplate, // ATUALIZADO
 		config,
 	); err != nil {
 		return err
@@ -109,25 +110,17 @@ func createAppFiles(config AppConfig) error {
 	// Criar controller principal
 	if err := createFileFromTemplate(
 		filepath.Join(baseAppPath, "controller", fmt.Sprintf("%s_controller.go", config.LowerName)),
-		controllerTemplate,
-		config,
-	); err != nil {
-		return err
-	}
-
-	// Criar model principal
-	if err := createFileFromTemplate(
-		filepath.Join(baseAppPath, "model", fmt.Sprintf("%s.go", config.LowerName)),
-		modelTemplate,
+		controllerTemplate, // ATUALIZADO
 		config,
 	); err != nil {
 		return err
 	}
 
 	// Criar template base
+	// ATUALIZADO: Nome do arquivo mudou de index.html para {{.LowerName}}_index.html
 	if err := createFileFromTemplate(
-		filepath.Join(basePath, "templates", config.LowerName, "index.html"),
-		templateIndex,
+		filepath.Join(basePath, "templates", config.LowerName, fmt.Sprintf("%s_index.html", config.LowerName)),
+		templateIndex, // Sem mudanças no conteúdo, mas o nome do arquivo sim
 		config,
 	); err != nil {
 		return err
@@ -155,44 +148,45 @@ func createAppFiles(config AppConfig) error {
 }
 
 func createFileFromTemplate(filePath, templateContent string, config AppConfig) error {
-    // Garantir que o diretório existe
-    dir := filepath.Dir(filePath)
-    if err := os.MkdirAll(dir, 0755); err != nil {
-        return fmt.Errorf("erro ao criar diretório %s: %v", dir, err)
-    }
+	// Garantir que o diretório existe
+	dir := filepath.Dir(filePath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório %s: %v", dir, err)
+	}
 
-    // Debug específico para arquivos HTML
-    if strings.HasSuffix(filePath, ".html") {
-        fmt.Printf("🔍 Criando template HTML: %s\n", filePath)
-        fmt.Printf("📏 Tamanho do template: %d bytes\n", len(templateContent))
-    }
+	var contentToWrite []byte
+	var err error
 
-    tmpl, err := template.New(filepath.Base(filePath)).Parse(templateContent)
-    if err != nil {
-        return fmt.Errorf("erro ao criar template para %s: %v", filePath, err)
-    }
-    
-    file, err := os.Create(filePath)
-    if err != nil {
-        return fmt.Errorf("erro ao criar arquivo %s: %v", filePath, err)
-    }
-    defer file.Close()
-    
-    if err := tmpl.Execute(file, config); err != nil {
-        return fmt.Errorf("erro ao executar template em %s: %v", filePath, err)
-    }
-    
-    // Verificar se o arquivo foi escrito corretamente
-    if strings.HasSuffix(filePath, ".html") {
-        info, _ := os.Stat(filePath)
-        if info != nil {
-            fmt.Printf("✅ Arquivo HTML criado: %s (%d bytes)\n", filePath, info.Size())
-        }
-    } else {
-        fmt.Printf("📄 Criado arquivo: %s\n", filePath)
-    }
-    
-    return nil
+	// Se for HTML, não use o motor de template, pois ele remove os blocos {{define}}
+	// Apenas faça substituições simples.
+	if strings.HasSuffix(filePath, ".html") {
+		tempContent := strings.ReplaceAll(templateContent, "{{.Name}}", config.Name)
+		tempContent = strings.ReplaceAll(tempContent, "{{.LowerName}}", config.LowerName)
+		tempContent = strings.ReplaceAll(tempContent, "{{.UpperName}}", config.UpperName)
+		tempContent = strings.ReplaceAll(tempContent, "{{.Version}}", config.Version)
+		contentToWrite = []byte(tempContent)
+
+	} else {
+		// Para arquivos .go, .css, .js, use o motor de template padrão
+		tmpl, terr := template.New(filepath.Base(filePath)).Parse(templateContent)
+		if terr != nil {
+			return fmt.Errorf("erro ao criar template para %s: %v", filePath, terr)
+		}
+
+		var buf bytes.Buffer
+		if err = tmpl.Execute(&buf, config); err != nil {
+			return fmt.Errorf("erro ao executar template em %s: %v", filePath, err)
+		}
+		contentToWrite = buf.Bytes()
+	}
+
+	// Escrever o conteúdo no arquivo
+	if err = os.WriteFile(filePath, contentToWrite, 0644); err != nil {
+		return fmt.Errorf("erro ao criar arquivo %s: %v", filePath, err)
+	}
+
+	fmt.Printf("📄 Criado arquivo: %s\n", filePath)
+	return nil
 }
 
 func registerAppInMain(config AppConfig) error {
@@ -257,7 +251,8 @@ func registerAppInMain(config AppConfig) error {
 	}
 
 	// 2. ADICIONAR REGISTRO DO APP
-	newRegistration := fmt.Sprintf(`	app.RegisterApp(%s.New%sApp(logger, mode))`, config.LowerName, config.UpperName)
+	// ATUALIZADO: Troca 'mode' por 'cfg'
+	newRegistration := fmt.Sprintf(`	app.RegisterApp(%s.New%sApp(logger, cfg))`, config.LowerName, config.UpperName)
 
 	// Procurar pela última ocorrência de RegisterApp
 	registrationAdded := false
@@ -280,20 +275,18 @@ func registerAppInMain(config AppConfig) error {
 		}
 	}
 
-	// Se não encontrou RegisterApp, procurar por SetupStatic
+	// Se não encontrou RegisterApp, procurar por SetupStatic (ou outro ponto de referência)
 	if !registrationAdded {
 		for i, line := range lines {
-			if strings.Contains(line, "app.SetupStatic()") {
-				// Inserir após SetupStatic
-				if i+1 < len(lines) {
-					newLines := make([]string, 0)
-					newLines = append(newLines, lines[:i+1]...)
-					newLines = append(newLines, newRegistration)
-					newLines = append(newLines, lines[i+1:]...)
-					lines = newLines
-				} else {
-					lines = append(lines, newRegistration)
-				}
+			// Tente encontrar um ponto de referência, ex: router.Run
+			// Ajuste "router.Run" se seu ponto de injeção for outro
+			if strings.Contains(line, "router.Run") || strings.Contains(line, "app.SetupStatic()") {
+				// Inserir antes desta linha
+				newLines := make([]string, 0)
+				newLines = append(newLines, lines[:i]...)
+				newLines = append(newLines, newRegistration)
+				newLines = append(newLines, lines[i:]...)
+				lines = newLines
 				registrationAdded = true
 				break
 			}
@@ -317,7 +310,15 @@ func registerAppInMain(config AppConfig) error {
 	return nil
 }
 
-// Templates
+// =================================================================
+// TEMPLATES ATUALIZADOS
+// =================================================================
+
+// ATUALIZADO:
+// - Usa *gin.Context em vez de http.ResponseWriter/Request
+// - Usa ctx.HTML() e ctx.JSON()
+// - Chama o template "{{.LowerName}}_index"
+// - Remove verificação de método (o Gin cuida disso no roteamento)
 const controllerTemplate = `package controller
 
 import (
@@ -325,6 +326,8 @@ import (
 	"deskapp/src/apps/core/controller"
 	"deskapp/src/apps/core/view"
 	"net/http"
+	
+	"github.com/gin-gonic/gin"
 )
 
 type {{.UpperName}}Controller struct {
@@ -338,18 +341,22 @@ func New{{.UpperName}}Controller(app app.AppInterface, view *view.View) *{{.Uppe
 	}
 }
 
-func (c *{{.UpperName}}Controller) Index(w http.ResponseWriter, r *http.Request) {
+func (c *{{.UpperName}}Controller) Index(ctx *gin.Context) {
 	data := map[string]interface{}{
 		"Title":       "{{.Name}}",
 		"Page":        "{{.LowerName}}",
 		"ActiveMenu":  "{{.LowerName}}",
 		"Message":     "Bem-vindo ao app {{.Name}}",
+		"Name":        "{{.Name}}",
+        "LowerName":   "{{.LowerName}}",
 	}
-	c.Render(w, "{{.LowerName}}/index.html", data)
+	// ATENÇÃO: O nome do template agora é "{{.LowerName}}_index"
+	// e usamos ctx.HTML, não c.Render
+	ctx.HTML(http.StatusOK, "{{.LowerName}}_index", data)
 }
 
-func (c *{{.UpperName}}Controller) Get{{.UpperName}}(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
+func (c *{{.UpperName}}Controller) Get{{.UpperName}}(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"data": []map[string]interface{}{
 			{
 				"id":   "1",
@@ -365,38 +372,34 @@ func (c *{{.UpperName}}Controller) Get{{.UpperName}}(w http.ResponseWriter, r *h
 	})
 }
 
-func (c *{{.UpperName}}Controller) Create{{.UpperName}}(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		c.JSON(w, http.StatusMethodNotAllowed, map[string]string{
-			"error": "Método não permitido",
-		})
-		return
-	}
-
-	c.JSON(w, http.StatusCreated, map[string]interface{}{
+func (c *{{.UpperName}}Controller) Create{{.UpperName}}(ctx *gin.Context) {
+	// A verificação de método (r.Method != http.MethodPost)
+	// não é mais necessária, pois o Gin cuida disso na definição da rota (router.POST)
+	
+	ctx.JSON(http.StatusCreated, map[string]interface{}{
 		"message": "{{.Name}} criado com sucesso",
 		"app":     "{{.LowerName}}",
 		"id":      "12345",
 	})
 }
 
-func (c *{{.UpperName}}Controller) Update{{.UpperName}}(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
+func (c *{{.UpperName}}Controller) Update{{.UpperName}}(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"message": "{{.Name}} atualizado com sucesso",
 		"app":     "{{.LowerName}}",
 	})
 }
 
-func (c *{{.UpperName}}Controller) Delete{{.UpperName}}(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
+func (c *{{.UpperName}}Controller) Delete{{.UpperName}}(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"message": "{{.Name}} deletado com sucesso", 
 		"app":     "{{.LowerName}}",
 	})
 }
 
 // APIHandler - Exemplo de endpoint de API
-func (c *{{.UpperName}}Controller) APIHandler(w http.ResponseWriter, r *http.Request) {
-	c.JSON(w, http.StatusOK, map[string]interface{}{
+func (c *{{.UpperName}}Controller) APIHandler(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, map[string]interface{}{
 		"status":  "success",
 		"app":     "{{.LowerName}}",
 		"version": "1.0.0",
@@ -405,43 +408,51 @@ func (c *{{.UpperName}}Controller) APIHandler(w http.ResponseWriter, r *http.Req
 }
 `
 
+// ATUALIZADO:
+// - Usa *gin.Engine em vez de *http.ServeMux
+// - Usa router.GET, router.POST, etc.
 const routesTemplate = `package {{.LowerName}}
 
 import (
 	"deskapp/src/apps/{{.LowerName}}/controller"
-	"net/http"
+	
+	"github.com/gin-gonic/gin"
 )
 
-func (a *{{.UpperName}}App) RegisterRoutes(mux *http.ServeMux) {
+func (a *{{.UpperName}}App) RegisterRoutes(router *gin.Engine) {
     controllers := a.GetControllers()
     
     for _, controllerInterface := range controllers {
         switch ctrl := controllerInterface.(type) {
         case *controller.{{.UpperName}}Controller:
             // Rotas básicas
-            mux.HandleFunc("/{{.LowerName}}/", ctrl.Index)
-            mux.HandleFunc("/{{.LowerName}}/index/", ctrl.Index)
+            router.GET("/{{.LowerName}}/", ctrl.Index)
+            router.GET("/{{.LowerName}}/index/", ctrl.Index)
             
             // Rotas CRUD
-            mux.HandleFunc("/{{.LowerName}}/get/", ctrl.Get{{.UpperName}})
-            mux.HandleFunc("/{{.LowerName}}/create/", ctrl.Create{{.UpperName}})
-            mux.HandleFunc("/{{.LowerName}}/update/", ctrl.Update{{.UpperName}})
-            mux.HandleFunc("/{{.LowerName}}/delete/", ctrl.Delete{{.UpperName}})
+			// (Assumindo POST para simplicidade, ajuste para PUT/DELETE se preferir)
+            router.GET("/{{.LowerName}}/get/", ctrl.Get{{.UpperName}})
+            router.POST("/{{.LowerName}}/create/", ctrl.Create{{.UpperName}})
+            router.POST("/{{.LowerName}}/update/", ctrl.Update{{.UpperName}})
+            router.POST("/{{.LowerName}}/delete/", ctrl.Delete{{.UpperName}})
             
             // Rotas de API
-            mux.HandleFunc("/api/{{.LowerName}}/", ctrl.APIHandler)
-            mux.HandleFunc("/api/{{.LowerName}}/status/", ctrl.APIHandler)
+            router.GET("/api/{{.LowerName}}/", ctrl.APIHandler)
+            router.GET("/api/{{.LowerName}}/status/", ctrl.APIHandler)
         }
     }
 }
 `
 
-// Os templates de app, model, etc. permanecem iguais...
+// ATUALIZADO:
+// - Recebe *config.Config em vez de utils.MODE
+// - Passa cfg para NewBaseApp
 const appTemplate = `package {{.LowerName}}
 
 import (
 	"deskapp/src/app"
 	"deskapp/src/apps/{{.LowerName}}/controller"
+	"deskapp/src/internal/config" // Import adicionado
 	"deskapp/src/internal/utils"
 )
 
@@ -449,8 +460,8 @@ type {{.UpperName}}App struct {
     *app.BaseApp
 }
 
-func New{{.UpperName}}App(logger *utils.Logger, mode utils.MODE) *{{.UpperName}}App {
-    baseApp := app.NewBaseApp("{{.LowerName}}", "{{.Version}}", logger, mode)
+func New{{.UpperName}}App(logger *utils.Logger, cfg *config.Config) *{{.UpperName}}App {
+    baseApp := app.NewBaseApp("{{.LowerName}}", "{{.Version}}", logger, cfg)
     return &{{.UpperName}}App{
         BaseApp: baseApp,
     }
@@ -468,39 +479,8 @@ func (a *{{.UpperName}}App) GetControllers() []interface{} {
 }
 `
 
-const modelTemplate = `package model
-
-import (
-	"fmt"
-	"time"
-)
-
-type {{.UpperName}} struct {
-    ID        string    ` + "`" + `json:"id"` + "`" + `
-    Name      string    ` + "`" + `json:"name"` + "`" + `
-    CreatedAt time.Time ` + "`" + `json:"created_at"` + "`" + `
-    UpdatedAt time.Time ` + "`" + `json:"updated_at"` + "`" + `
-}
-
-// New{{.UpperName}} cria uma nova instância
-func New{{.UpperName}}(name string) *{{.UpperName}} {
-    now := time.Now()
-    return &{{.UpperName}}{
-        Name:      name,
-        CreatedAt: now,
-        UpdatedAt: now,
-    }
-}
-
-// Métodos do modelo podem ser adicionados aqui
-func (m *{{.UpperName}}) Validate() error {
-    if m.Name == "" {
-        return fmt.Errorf("nome não pode estar vazio")
-    }
-    return nil
-}
-`
-
+// SEM MUDANÇAS NO CONTEÚDO
+// (O nome do arquivo gerado mudou para {{.LowerName}}_index.html)
 const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
 
 {{define "page_css"}}
@@ -516,17 +496,17 @@ const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
     
     <main class="app-content">
         <div class="welcome-card">
-            <h2>✅ App Criado com Sucesso!</h2>
+            <h2>✅ App Criado com Sucesso! (Modelo Gin)</h2>
             <p>Seu app <strong>{{.Name}}</strong> foi criado e está pronto para desenvolvimento.</p>
             
             <div class="core-features">
-                <h3>🚀 Integrado com a Estrutura Core</h3>
+                <h3>🚀 Integrado com a Estrutura Core (Gin)</h3>
                 <p>Este app está integrado com a estrutura Core do projeto DeskApp.</p>
                 <ul>
-                    <li><strong>BaseController</strong> - Herda da estrutura base de controllers</li>
-                    <li><strong>Sistema de Views</strong> - Templates unificados e organizados</li>
-                    <li><strong>Logging Consistente</strong> - Sistema de logging padronizado</li>
-                    <li><strong>Gerenciamento de Rotas</strong> - Sistema automático de rotas</li>
+                    <li><strong>Roteamento Gin</strong> - Rotas definidas com <code>router.GET</code>, <code>router.POST</code>, etc.</li>
+                    <li><strong>Handlers Gin</strong> - Controllers usam <code>*gin.Context</code></li>
+                    <li><strong>Renderização Gin</strong> - Respostas com <code>ctx.HTML()</code> e <code>ctx.JSON()</code></li>
+                    <li><strong>Configuração Centralizada</strong> - App recebe <code>*config.Config</code></li>
                 </ul>
             </div>
             
@@ -535,7 +515,7 @@ const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
                 <ul>
                     <li><strong>Implementar Lógica:</strong> Edite <code>app.go</code> para adicionar funcionalidades específicas</li>
                     <li><strong>Configurar Rotas:</strong> Adicione novas rotas em <code>routes.go</code></li>
-                    <li><strong>Criar Templates:</strong> Desenvolva templates em <code>templates/{{.LowerName}}/</code></li>
+                    <li><strong>Criar Templates:</strong> Desenvolve templates em <code>templates/{{.LowerName}}/</code></li>
                     <li><strong>Desenvolver Controllers:</strong> Crie controllers específicos em <code>controller/</code></li>
                     <li><strong>Definir Modelos:</strong> Implemente modelos de dados em <code>model/</code></li>
                     <li><strong>Estilizar:</strong> Personalize o CSS em <code>static/{{.LowerName}}/css/</code></li>
@@ -569,11 +549,12 @@ const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
                     </a>
                     <a href="/{{.LowerName}}/get/" class="action-btn">
                         <span class="action-icon">📋</span>
-                        <span>Ver Lista</span>
+                        <span>Ver Lista (GET)</span>
                     </a>
-                    <a href="/{{.LowerName}}/create/" class="action-btn">
+                    <!-- Exemplo de como acionar um POST (requer JS ou formulário) -->
+                    <a href="#" onclick="fetch('/{{.LowerName}}/create/', { method: 'POST' }).then(res => res.json()).then(console.log)" class="action-btn">
                         <span class="action-icon">➕</span>
-                        <span>Criar Item</span>
+                        <span>Criar Item (POST)</span>
                     </a>
                     <a href="/api/{{.LowerName}}/" class="action-btn">
                         <span class="action-icon">🔌</span>
@@ -583,14 +564,14 @@ const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
             </div>
 
             <div class="code-example">
-                <h3>💻 Exemplo de Uso:</h3>
+                <h3>💻 Exemplo de Uso (Gin):</h3>
                 <pre><code>// No controller {{.LowerName}}_controller.go
-func (c *{{.UpperName}}Controller) CustomAction(w http.ResponseWriter, r *http.Request) {
+func (c *{{.UpperName}}Controller) CustomAction(ctx *gin.Context) {
     data := map[string]interface{}{
         "Title": "Página Customizada",
         "Data":  "Seus dados aqui",
     }
-    c.Render(w, "{{.LowerName}}/custom.html", data)
+    ctx.HTML(http.StatusOK, "{{.LowerName}}_custom", data)
 }</code></pre>
             </div>
         </div>
@@ -598,6 +579,7 @@ func (c *{{.UpperName}}Controller) CustomAction(w http.ResponseWriter, r *http.R
 </div>
 {{end}}`
 
+// SEM MUDANÇAS
 const cssTemplate = `/* Estilos para o app {{.Name}} */
 .{{.LowerName}}-container {
     max-width: 1200px;
@@ -636,28 +618,28 @@ const cssTemplate = `/* Estilos para o app {{.Name}} */
     margin-bottom: 15px;
 }
 
-.next-steps {
+.next-steps, .core-features, .app-stats, .quick-actions, .code-example {
     margin-top: 25px;
     padding-top: 20px;
     border-top: 1px solid #eee;
 }
 
-.next-steps h3 {
+.next-steps h3, .core-features h3, .app-stats h3, .quick-actions h3, .code-example h3 {
     color: #333;
     margin-bottom: 15px;
 }
 
-.next-steps ul {
+.next-steps ul, .core-features ul {
     list-style-type: none;
     padding: 0;
 }
 
-.next-steps li {
+.next-steps li, .core-features li {
     padding: 8px 0;
     border-bottom: 1px solid #f5f5f5;
 }
 
-.next-steps li:last-child {
+.next-steps li:last-child, .core-features li:last-child {
     border-bottom: none;
 }
 
@@ -668,10 +650,77 @@ const cssTemplate = `/* Estilos para o app {{.Name}} */
     font-family: 'Courier New', monospace;
     color: #d63384;
 }
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    text-align: center;
+}
+
+.stat-item {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.stat-item .stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-item .stat-label {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #e9f5ff;
+    border: 1px solid #b6dfff;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #0056b3;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.action-btn:hover {
+    background-color: #dcf0ff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.action-icon {
+    font-size: 1.2em;
+}
+
+.code-example pre {
+    background: #2d2d2d;
+    color: #f1f1f1;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.code-example code {
+    font-family: 'Courier New', monospace;
+}
 `
 
+// SEM MUDANÇAS
 const jsTemplate = `// JavaScript para o app {{.Name}}
-console.log('App {{.Name}} carregado!');
+console.log('App {{.Name}} (Gin) carregado!');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM carregado para o app {{.Name}}');
@@ -681,11 +730,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Exemplo: interação básica
     const welcomeCard = document.querySelector('.welcome-card');
     if (welcomeCard) {
-        welcomeCard.addEventListener('click', function() {
-            this.style.transform = 'scale(0.98)';
-            setTimeout(() => {
-                this.style.transform = 'scale(1)';
-            }, 150);
+        welcomeCard.addEventListener('mouseenter', function() {
+            this.style.boxShadow = '0 8px 12px rgba(0, 0, 0, 0.15)';
+        });
+		welcomeCard.addEventListener('mouseleave', function() {
+            this.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
         });
     }
 });

@@ -2,6 +2,7 @@ package core
 
 import (
 	"deskapp/src/app"
+	"deskapp/src/internal/config"
 	"deskapp/src/internal/utils"
 )
 
@@ -20,8 +21,8 @@ func (a *CoreApp) Initialize() error {
 	return nil
 }
 
-func NewCoreApp(logger *utils.Logger, mode utils.MODE) *CoreApp {
-	baseApp := app.NewBaseApp("core", "1.0.0", logger, mode)
+func NewCoreApp(logger *utils.Logger, cfg *config.Config) *CoreApp {
+	baseApp := app.NewBaseApp("core", "1.0.0", logger, cfg)
 	return &CoreApp{
 		BaseApp: baseApp,
 	}

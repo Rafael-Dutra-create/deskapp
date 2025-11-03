@@ -1,0 +1,136 @@
+/* Estilos para o app triagem */
+.triagem-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.app-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.app-header h1 {
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.app-header p {
+    color: #666;
+    font-size: 18px;
+}
+
+.welcome-card {
+    background: white;
+    border-radius: 10px;
+    padding: 30px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #007bff;
+}
+
+.welcome-card h2 {
+    color: #007bff;
+    margin-bottom: 15px;
+}
+
+.next-steps, .core-features, .app-stats, .quick-actions, .code-example {
+    margin-top: 25px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.next-steps h3, .core-features h3, .app-stats h3, .quick-actions h3, .code-example h3 {
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.next-steps ul, .core-features ul {
+    list-style-type: none;
+    padding: 0;
+}
+
+.next-steps li, .core-features li {
+    padding: 8px 0;
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.next-steps li:last-child, .core-features li:last-child {
+    border-bottom: none;
+}
+
+.next-steps code {
+    background: #f4f4f4;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    color: #d63384;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    text-align: center;
+}
+
+.stat-item {
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.stat-item .stat-number {
+    display: block;
+    font-size: 2em;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.stat-item .stat-label {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.action-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #e9f5ff;
+    border: 1px solid #b6dfff;
+    border-radius: 5px;
+    text-decoration: none;
+    color: #0056b3;
+    font-weight: 500;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.action-btn:hover {
+    background-color: #dcf0ff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.action-icon {
+    font-size: 1.2em;
+}
+
+.code-example pre {
+    background: #2d2d2d;
+    color: #f1f1f1;
+    padding: 15px;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+
+.code-example code {
+    font-family: 'Courier New', monospace;
+}
