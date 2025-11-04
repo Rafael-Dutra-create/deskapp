@@ -1,4 +1,4 @@
-package scripts
+package main
 
 import (
 	"bufio"
@@ -12,6 +12,24 @@ import (
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
+
+// CreateAppScript implementação do script create-app
+type CreateAppScript struct {
+    ScriptBase
+}
+
+func (s *CreateAppScript) Name() string {
+    return "create-app"
+}
+
+func (s *CreateAppScript) Description() string {
+    return "Cria uma nova aplicação com estrutura básica"
+}
+
+func (s *CreateAppScript) Execute(args []string) error {
+	return CreateApp()
+}
+
 
 type AppConfig struct {
 	Name      string
@@ -68,7 +86,9 @@ func createAppStructure(config AppConfig) error {
 	baseAppPath := filepath.Join(basePath, "apps", config.LowerName)
 	dirs := []string{
 		filepath.Join(baseAppPath, "controller"),
-		filepath.Join(baseAppPath, "model"),
+		filepath.Join(baseAppPath, "model", "entities"),
+		filepath.Join(baseAppPath, "model", "repository"),
+		filepath.Join(baseAppPath, "model", "action"),
 		filepath.Join(basePath, "templates", config.LowerName),
 		filepath.Join(basePath, "static", config.LowerName, "css"),
 		filepath.Join(basePath, "static", config.LowerName, "js"),

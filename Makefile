@@ -5,6 +5,7 @@
 APP_NAME=deskapp
 SRC_DIR=./src
 SCRIPTS_DIR=./src/internal/scripts
+DATABASE_URL=postgresql://postgres:123456@localhost:5432/pydata?sslmode=disable
 CMD_DIR=./src/internal/cmd
 
 # Comando padrão
@@ -45,12 +46,13 @@ build-macos:
 # Criar um novo app (executando o script alternativo, se existir)
 createapp:
 	@echo "📱 Criando novo app (alternativo)..."
-	go run $(CMD_DIR)/createapp/main.go
+	go run $(SCRIPTS_DIR) create-app
     
 # Mapear tabela (executando o script)
 tablemap:
 	@echo "🗺️ Mapeando tabela para struct..."
-	go run $(CMD_DIR)/table_map/main.go
+	go run $(SCRIPTS_DIR) tablemap
+	
 
 
 # Limpar binários
