@@ -6,16 +6,14 @@ import (
 	"fmt"
 )
 
-type BaseRepository struct {
+type BaseRepository[T any] struct {
 	db     *sql.DB
 	table  string
 	schema string
 }
 
 // getFullTableName é um helper interno para formatar "schema"."table".
-func (r *BaseRepository) getFullTableName() string {
-	// Usamos aspas para proteger contra nomes de tabelas com
-	// caracteres especiais ou palavras-chave SQL.
+func (r *BaseRepository[T]) getFullTableName() string {
 	if r.schema != "" {
 		return fmt.Sprintf(`"%s"."%s"`, r.schema, r.table)
 	}
@@ -23,12 +21,12 @@ func (r *BaseRepository) getFullTableName() string {
 }
 
 // GetDB expõe o executor para uso direto, se necessário.
-func (r *BaseRepository) GetDB() *sql.DB {
+func (r *BaseRepository[T]) GetDB() *sql.DB {
 	return r.db
 }
 
-func (r *BaseRepository) Where(ctx context.Context, queryFragment string, arg any) *QueryBuilder {
-	return &QueryBuilder{
+func (r *BaseRepository[T]) Where(ctx context.Context, queryFragment string, arg any) IQueryBuider[T] {
+	return &QueryBuilder[T]{
 		repo:    r,
 		ctx:     ctx,
 		columns: []string{"*"},
@@ -38,7 +36,7 @@ func (r *BaseRepository) Where(ctx context.Context, queryFragment string, arg an
 }
 
 // Select inicia uma nova consulta selecionando colunas específicas.
-func (r *BaseRepository) Select(ctx context.Context, columns ...string) *QueryBuilder {
+func (r *BaseRepository[T]) Select(ctx context.Context, columns ...string) IQueryBuider[T] {
 	if len(columns) == 0 {
 		columns = []string{"*"}
 	}
@@ -49,10 +47,10 @@ func (r *BaseRepository) Select(ctx context.Context, columns ...string) *QueryBu
 	}
 }
 
-func NewBaseRepository(db *sql.DB, table string, scheme string) *BaseRepository {
-	return &BaseRepository{
-		db: db,
-		table: table,
-		schema: scheme,
+func NewBaseRepository[T any](db *sql.DB, table string, schema string) *BaseRepository[T] {
+	return &BaseRepository[T]{
+		db:     db,
+		table:  table,
+		schema: schema,
 	}
 }

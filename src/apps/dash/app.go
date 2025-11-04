@@ -25,6 +25,6 @@ func (a *DashApp) Initialize() error {
 
 func (a *DashApp) GetControllers() []interface{} {
     return []interface{}{
-       controller.NewDashController(a, a.View),
+       controller.NewDashController(a),
     }
 }

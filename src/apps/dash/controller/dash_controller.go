@@ -1,14 +1,14 @@
 package controller
 
 import (
+	"context"
+	"deskapp/src/app"
+	"deskapp/src/apps/core/controller"
+	"deskapp/src/apps/dash/model/repository/usuario"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-
-	"deskapp/src/app"
-	"deskapp/src/apps/core/controller"
-	"deskapp/src/apps/core/view"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,9 +17,9 @@ type DashController struct {
 	*controller.BaseController
 }
 
-func NewDashController(app app.AppInterface, view *view.View) *DashController {
+func NewDashController(app app.AppInterface) *DashController {
 
-	base := controller.NewBaseController(app, view, "dash controller")
+	base := controller.NewBaseController(app, "dash controller")
 	return &DashController{
 		BaseController: base,
 		// dashService: dashService,
@@ -37,6 +37,7 @@ func (c *DashController) Index(ctx *gin.Context) {
     }
 
     resp, err := http.Get("https://estatapi.controllab.com/rodadas/mod/368?total=1&ano[]=2026")
+
     if err != nil {
         c.GetLogger().Warningf("falha na requisição da API: %v", err)
         data["Message"] = "Erro ao carregar dados da API."
@@ -59,6 +60,11 @@ func (c *DashController) Index(ctx *gin.Context) {
             data["Rodadas"] = rodadasData 
         }
     }
+
+    repo := usuario.NewUsuarioRepository(c.GetApp().GetDB())
+    repo.Select(context.Background()).Query()
+    fmt.Printf("%+v\n", repo)
+    data["User"] = "user.Email.String"
 	ctx.HTML(http.StatusOK, "dash_index", data)
 }
 

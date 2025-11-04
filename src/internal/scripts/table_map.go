@@ -28,7 +28,7 @@ func (s *TableMapScript) Name() string {
 }
 
 func (s *TableMapScript) Description() string {
-    return "Cria uma struct de uma tabela do banco"
+	return "Cria uma struct de uma tabela do banco"
 }
 
 func (s *TableMapScript) Execute(args []string) error {
@@ -51,11 +51,13 @@ type StructField struct {
 
 // StructConfig é passado para o template para gerar o arquivo
 type StructConfig struct {
-	AppName     string        // ex: dash
-	ModelName   string        // ex: User
-	TableName   string        // ex: users
-	PackageName string        // ex: model
-	Fields      []StructField // Lista de campos
+	AppName             string // ex: dash
+	ModelName           string // ex: User
+	TableName           string // ex: users
+	PackageName         string // ex: model
+	SchemaName          string // ex: public
+	EntitiesPackagePath string
+	Fields              []StructField // Lista de campos
 }
 
 // MapTableToStruct é a função principal que executa o script
@@ -82,7 +84,6 @@ func MapTableToStruct() error {
 	tableName, _ := reader.ReadString('\n')
 	tableName = strings.TrimSpace(tableName)
 
-	
 	defer db.Close()
 
 	// 3. Inspecionar a Tabela
@@ -102,7 +103,7 @@ func MapTableToStruct() error {
 		AppName:     appName,
 		ModelName:   snakeToCamel(tableName), // ex: users -> User
 		TableName:   tableName,
-		PackageName: "model",
+		PackageName: "entities",
 		Fields:      make([]StructField, 0),
 	}
 
@@ -135,7 +136,22 @@ func MapTableToStruct() error {
 		return fmt.Errorf("falha ao gerar arquivo de model: %v", err)
 	}
 
+	capitalizedModelName := titler.String(config.ModelName)
+
+	config.ModelName = capitalizedModelName
+	// Define o caminho de importação das entidades
+	entitiesPackagePath := filepath.Join("deskapp/src/apps", appName, "model", "entities")
+	// Garante barras no padrão Go (linux) e não Windows
+	config.EntitiesPackagePath = strings.ReplaceAll(entitiesPackagePath, "\\", "/")
+
 	fmt.Printf("✅ Struct '%s' gerado com sucesso em: %s\n", config.ModelName, targetPath)
+
+	repoFileName := fmt.Sprintf("%s_repository.go", tableName)
+	repoTargetPath := filepath.Join("src", "apps", appName, "model", "repository", repoFileName)
+
+	if err := generateRepositoryFile(repoTargetPath, config); err != nil {
+		return fmt.Errorf("falha ao gerar arquivo de repository: %v", err)
+	}
 	return nil
 }
 
@@ -176,7 +192,7 @@ func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 			return "sql.NullString"
 		}
 		return "string"
-	
+
 	case "integer", "int", "int4":
 		if isNullableBool {
 			return "sql.NullInt32"
@@ -194,13 +210,13 @@ func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 			return "sql.NullInt64"
 		}
 		return "int64"
-	
+
 	case "boolean", "bool":
 		if isNullableBool {
 			return "sql.NullBool"
 		}
 		return "bool"
-	
+
 	case "numeric", "decimal", "real", "float4", "double precision", "float8":
 		if isNullableBool {
 			return "sql.NullFloat64"
@@ -216,14 +232,14 @@ func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 	case "json", "jsonb":
 		if isNullableBool {
 			// json.RawMessage pode ser nulo por padrão
-			return "json.RawMessage" 
+			return "json.RawMessage"
 		}
 		return "json.RawMessage" // Ou []byte
 
 	case "uuid":
 		if isNullableBool {
 			// Pode requerer uma lib (google/uuid) ou tratar como sql.NullString
-			return "sql.NullString" 
+			return "sql.NullString"
 		}
 		return "string"
 
@@ -255,7 +271,6 @@ func snakeToCamel(s string) string {
 	}
 	return result.String()
 }
-
 
 // Titler para capitalizar o nome do modelo
 var titler = cases.Title(language.Portuguese)
@@ -303,7 +318,7 @@ func (m *{{.ModelName}}) ScanRow(row DBScanner) error {
 
 	// As importações reais necessárias...
 	actualImports := map[string]bool{
-		"database/sql": true, 
+		"database/sql": true,
 	}
 
 	for _, field := range config.Fields {
@@ -346,7 +361,7 @@ func (m *{{.ModelName}}) ScanRow(row DBScanner) error {
 	formattedSource, err := format.Source(buf.Bytes())
 	if err != nil {
 		fmt.Printf("⚠️  Aviso: falha ao formatar o código gerado: %v\n", err)
-		formattedSource = buf.Bytes() 
+		formattedSource = buf.Bytes()
 	}
 
 	// Garantir que o diretório existe
@@ -358,6 +373,66 @@ func (m *{{.ModelName}}) ScanRow(row DBScanner) error {
 	// Escrever o arquivo formatado
 	if err := os.WriteFile(targetPath, formattedSource, 0644); err != nil {
 		return fmt.Errorf("erro ao escrever arquivo: %v", err)
+	}
+
+	return nil
+}
+
+// generateRepositoryFile cria o arquivo .go do repositório
+// <<< INÍCIO DA FUNÇÃO ATUALIZADA >>>
+
+// generateRepositoryFile cria o arquivo .go do repositório especializado
+func generateRepositoryFile(targetPath string, config StructConfig) error {
+	// NOTA: O import do BaseRepository parece fixo com base nos seus arquivos.
+	// Ajuste "deskapp/src/apps/core/model/repository" se este caminho for dinâmico.
+	const repositoryTemplate = `package repository
+
+import (
+	"database/sql"
+	"deskapp/src/apps/core/model/repository"
+)
+
+// {{.ModelName}}Repository é o repositório para a entidade {{.ModelName}}
+type {{.ModelName}}Repository struct {
+	*repository.BaseRepository
+}
+
+// New{{.ModelName}}Repository cria um novo {{.ModelName}}Repository
+func New{{.ModelName}}Repository(db *sql.DB) *{{.ModelName}}Repository {
+	base := repository.NewBaseRepository(db, "{{.TableName}}", "{{.SchemaName}}")
+	return &{{.ModelName}}Repository{
+		BaseRepository: base,
+	}
+}
+`
+	// O ModelName já deve vir capitalizado da função MapTableToStruct
+
+	tmpl, err := template.New("repository").Parse(repositoryTemplate)
+	if err != nil {
+		return fmt.Errorf("erro ao parsear template do repositório: %v", err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, config); err != nil {
+		return fmt.Errorf("erro ao executar template do repositório: %v", err)
+	}
+
+	// Formata o código gerado
+	formattedSource, err := format.Source(buf.Bytes())
+	if err != nil {
+		fmt.Printf("⚠️  Aviso: falha ao formatar o código do repositório gerado: %v\n", err)
+		formattedSource = buf.Bytes()
+	}
+
+	// Garantir que o diretório existe
+	dir := filepath.Dir(targetPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório %s: %v", dir, err)
+	}
+
+	// Escrever o arquivo formatado
+	if err := os.WriteFile(targetPath, formattedSource, 0644); err != nil {
+		return fmt.Errorf("erro ao escrever arquivo do repositório: %v", err)
 	}
 
 	return nil
