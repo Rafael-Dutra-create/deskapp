@@ -441,24 +441,14 @@ import (
 
 func (a *{{.UpperName}}App) RegisterRoutes(router *gin.Engine) {
     controllers := a.GetControllers()
+
+	dashGroup := router.Group("/{{.LowerName}}")
     
     for _, controllerInterface := range controllers {
         switch ctrl := controllerInterface.(type) {
         case *controller.{{.UpperName}}Controller:
             // Rotas básicas
-            router.GET("/{{.LowerName}}/", ctrl.Index)
-            router.GET("/{{.LowerName}}/index/", ctrl.Index)
-            
-            // Rotas CRUD
-			// (Assumindo POST para simplicidade, ajuste para PUT/DELETE se preferir)
-            router.GET("/{{.LowerName}}/get/", ctrl.Get{{.UpperName}})
-            router.POST("/{{.LowerName}}/create/", ctrl.Create{{.UpperName}})
-            router.POST("/{{.LowerName}}/update/", ctrl.Update{{.UpperName}})
-            router.POST("/{{.LowerName}}/delete/", ctrl.Delete{{.UpperName}})
-            
-            // Rotas de API
-            router.GET("/api/{{.LowerName}}/", ctrl.APIHandler)
-            router.GET("/api/{{.LowerName}}/status/", ctrl.APIHandler)
+            dashGroup.GET("/{{.LowerName}}/", ctrl.Index)
         }
     }
 }

@@ -5,6 +5,7 @@ import (
 	"deskapp/src/internal/config"
 	"deskapp/src/internal/utils"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"log"
 	"net/http"
@@ -73,7 +74,6 @@ func (am *AppManager) setupMultiTemplates() {
 }
 
 func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
-	// Encontra todos os arquivos de template
 	var templateFiles []string
 	err := fs.WalkDir(am.templateFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -81,7 +81,6 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		}
 		if !d.IsDir() && (strings.HasSuffix(path, ".html") || strings.HasSuffix(path, ".tmpl")) {
 			templateFiles = append(templateFiles, path)
-			am.logger.Infof("📄 Encontrado template: %s", path)
 		}
 		return nil
 	})
@@ -91,74 +90,84 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		return
 	}
 
-	// Separa layouts e páginas
+	// 1. Separa layouts, componentes e páginas
 	layouts := []string{}
+	components := []string{}
 	pages := []string{}
+	baseLayoutFile := "" // O arquivo 'base.html'
 
 	for _, file := range templateFiles {
-		if strings.Contains(file, "layouts/") || file == "templates/base.html" {
+		// Encontra o 'base.html'
+		if file == "templates/base.html" || strings.HasSuffix(file, "/base.html") {
+			baseLayoutFile = file
+			continue // Não o adicione a nenhuma outra lista
+		}
+
+		if strings.Contains(file, "layouts/") {
 			layouts = append(layouts, file)
+		} else if strings.Contains(file, "components/") {
+			components = append(components, file)
 		} else {
 			pages = append(pages, file)
 		}
 	}
 
+	if baseLayoutFile == "" {
+		am.logger.Error("❌ Erro crítico: 'base.html' não encontrado nos templates.")
+		return
+	}
+
+	am.logger.Infof("📊 Layout base: %s", baseLayoutFile)
+	am.logger.Infof("📊 Layouts adicionais: %d", len(layouts))
+	am.logger.Infof("📊 Componentes: %d", len(components))
+	am.logger.Infof("📊 Páginas: %d", len(pages))
 	am.logger.Infof("📊 Layouts encontrados: %d", len(layouts))
+	am.logger.Infof("📊 Componentes encontrados: %d", len(components))
 	am.logger.Infof("📊 Páginas encontradas: %d", len(pages))
 
-	// Se não encontrou layouts específicos, usa base.html como layout padrão
-	if len(layouts) == 0 {
-		for _, file := range templateFiles {
-			if file == "templates/base.html" {
-				layouts = append(layouts, file)
-				break
-			}
-		}
+	// 2. Carrega todos os Layouts e Componentes UMA ÚNICA VEZ
+	baseTemplate, err := template.New("base").ParseFS(am.templateFS, baseLayoutFile)
+	if err != nil {
+		am.logger.Errorf("❌ Erro ao parsear template base '%s': %v", baseLayoutFile, err)
+		return
 	}
 
-	// Adiciona templates combinando layouts com páginas usando AddFromFS
+	commonFiles := append(layouts, components...)
+	if len(commonFiles) > 0 {
+		_, err = baseTemplate.ParseFS(am.templateFS, commonFiles...)
+		if err != nil {
+			am.logger.Errorf("❌ Erro ao parsear templates comuns: %v", err)
+			return
+		}
+	}
+	am.logger.Info("✅ Templates comuns (layouts + componentes) carregados.")
+
+	// 3. Para cada página, CLONA o template base e adiciona o arquivo da página
 	templateCount := 0
-
 	for _, page := range pages {
-		// Para cada página, combina com todos os layouts
-		for _, layout := range layouts {
-			// Nome do template é o nome da página sem extensão
-			name := strings.TrimSuffix(filepath.Base(page), ".html")
-			name = strings.TrimSuffix(name, ".tmpl")
+		name := strings.TrimSuffix(filepath.Base(page), ".html")
+		name = strings.TrimSuffix(name, ".tmpl")
 
-			// Combina layout + página
-			files := []string{layout, page}
-
-			// Usa AddFromFS para adicionar do embed.FS
-			render.AddFromFS(name, am.templateFS, files...)
-
-			am.logger.Infof("✅ Template registrado: %s → [%s, %s]", name, filepath.Base(layout), filepath.Base(page))
-			templateCount++
-
-			// Para cada página, só usa um layout (evita duplicação)
-			break
+		clonedTemplate, err := baseTemplate.Clone()
+		if err != nil {
+			am.logger.Errorf("❌ Erro ao clonar template base para %s: %v", name, err)
+			continue
 		}
+
+		// Faz o parse APENAS do arquivo da página no clone
+		pageTemplate, err := clonedTemplate.ParseFS(am.templateFS, page)
+		if err != nil {
+			am.logger.Errorf("❌ Erro ao parsear template de página %s (%s): %v", name, page, err)
+			continue
+		}
+
+		render.Add(name, pageTemplate)
+		templateCount++
 	}
 
-	am.logger.Infof("🎉 Total de templates registrados: %d", templateCount)
-
-	// Debug: verifica os templates registrados
-	am.debugRegisteredTemplates(render)
+	am.logger.Infof("🎉 Total de %d páginas registradas com sucesso!", templateCount)
 }
 
-func (am *AppManager) debugRegisteredTemplates(render multitemplate.Renderer) {
-	am.logger.Info("🔍 Verificando templates registrados no multitemplate...")
-
-	// Tenta acessar os templates via type assertion
-	if renderMap, ok := render.(multitemplate.Render); ok {
-		am.logger.Infof("📋 Total de templates registrados: %d", len(renderMap))
-		for name := range renderMap {
-			am.logger.Infof("   - '%s'", name)
-		}
-	} else {
-		am.logger.Error("❌ Não foi possível acessar a lista de templates")
-	}
-}
 
 func (am *AppManager) SetupStatic() {
 	if am.staticFS == nil {
@@ -172,22 +181,6 @@ func (am *AppManager) SetupStatic() {
 		am.logger.Errorf("❌ Erro ao criar sub-filesystem para static: %v", err)
 		return
 	}
-
-	// Debug: listar arquivos estáticos disponíveis
-	am.logger.Info("📁 Conteúdo do StaticFS:")
-	err = fs.WalkDir(staticSubFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			am.logger.Infof("   📄 %s", path)
-		}
-		return nil
-	})
-	if err != nil {
-		am.logger.Errorf("❌ Erro ao listar arquivos estáticos: %v", err)
-	}
-
 	// Configura o StaticFS com o sub-filesystem
 	am.router.StaticFS("/static", http.FS(staticSubFS))
 	am.logger.Info("✅ Sistema de arquivos estáticos configurado em /static")

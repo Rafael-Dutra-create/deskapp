@@ -21,17 +21,19 @@ type IQueryBuilder[T any, P interface { *T; entities.Entity }] interface {
 	Offset(offset uint64) IQueryBuilder[T, P]
 	First() (*T, error)
 	Query() ([]*T, error)
+	PrintQuery()
 }
 
 type QueryBuilder[T any, P interface { *T; entities.Entity }] struct {
 	repo    *BaseRepository[T, P] // Também precisa ser genérico
 	ctx     context.Context
-	// NÃO PRECISAMOS MAIS DE "columns" AQUI!
+	columns []string
 	wheres  []string
 	args    []any
 	orderBy string
 	limit   uint64
 	offset  uint64
+	query string
 }
 
 // And adiciona uma condição "AND" à consulta.
@@ -40,6 +42,7 @@ func (qb *QueryBuilder[T, P]) And(queryFragment string, arg any) IQueryBuilder[T
 	qb.args = append(qb.args, arg)
 	return qb
 }
+
 
 // OrderBy define a cláusula ORDER BY.
 func (qb *QueryBuilder[T, P]) OrderBy(orderBy string) IQueryBuilder[T, P] {
@@ -62,12 +65,11 @@ func (qb *QueryBuilder[T, P]) Offset(offset uint64) IQueryBuilder[T, P] {
 // buildSelectSQL é um helper interno para montar a string SQL final.
 func (qb *QueryBuilder[T, P]) buildSelectSQL() (string, []any) {
 	var query strings.Builder
-
-	var model T
-	pModel := P(&model)
-
+	
 	// 1. SELECT
 	query.WriteString("SELECT ")
+	var model T
+	pModel := P(&model)
 	query.WriteString(strings.Join(pModel.Columns(), ", "))
 
 	// 2. FROM
@@ -96,7 +98,13 @@ func (qb *QueryBuilder[T, P]) buildSelectSQL() (string, []any) {
 		query.WriteString(fmt.Sprintf(" OFFSET %d", qb.offset))
 	}
 
+	qb.query = query.String()
+
 	return query.String(), qb.args
+}
+
+func (qb *QueryBuilder[T, P]) PrintQuery() {
+	fmt.Println(qb.query)
 }
 
 // Query executa a consulta e retorna *sql.Rows (para múltiplos resultados).

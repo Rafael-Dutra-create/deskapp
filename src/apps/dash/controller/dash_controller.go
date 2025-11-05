@@ -1,10 +1,8 @@
 package controller
 
 import (
-	"context"
 	"deskapp/src/app"
 	"deskapp/src/apps/core/controller"
-	"deskapp/src/apps/dash/model/repository/usuario"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -44,26 +42,22 @@ func (c *DashController) Index(ctx *gin.Context) {
     } else {
         defer resp.Body.Close()
 
-        // 🚨 MUDANÇA CRÍTICA: Decodificar para uma lista (slice) de mapas
         var rodadasData []map[string]interface{} // <-- Novo tipo
         body, err := io.ReadAll(resp.Body)
         
         if err != nil {
             // ... (log de erro de leitura do corpo)
             data["Message"] = "Erro ao ler corpo da resposta."
-        } else if err := json.Unmarshal(body, &rodadasData); err != nil { // <-- Decodifica para a lista
+        } else if err := json.Unmarshal(body, &rodadasData); err != nil {
             c.GetLogger().Warningf("falha ao decodificar JSON: %v", err)
             data["Message"] = "Erro ao decodificar dados da API."
         } else {
             data["Message"] = fmt.Sprintf("Dados carregados com sucesso! Total: %d", len(rodadasData))
-            // 🚨 INJETA A LISTA NO MAPA DE DADOS DO TEMPLATE
             data["Rodadas"] = rodadasData 
         }
     }
+    data["User"] = "Victor"
 
-    repo := usuario.NewUsuarioRepository(c.GetApp().GetDB())
-    usuarios, _ := repo.Select(context.Background()).Query()
-    data["User"] = usuarios[0]
 	ctx.HTML(http.StatusOK, "dash_index", data)
 }
 

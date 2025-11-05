@@ -19,45 +19,38 @@ import (
 	"golang.org/x/text/language"
 )
 
+// (Structs ScriptBase, ColumnInfo, StructField permanecem iguais)
 type TableMapScript struct {
 	ScriptBase
 }
 
-func (s *TableMapScript) Name() string {
-	return "tablemap"
-}
-
+func (s *TableMapScript) Name() string { return "tablemap" }
 func (s *TableMapScript) Description() string {
 	return "Cria uma struct de uma tabela do banco"
 }
+func (s *TableMapScript) Execute(args []string) error { return MapTableToStruct() }
 
-func (s *TableMapScript) Execute(args []string) error {
-	return MapTableToStruct()
-}
-
-// ColumnInfo armazena os metadados de uma coluna do DB
 type ColumnInfo struct {
 	ColumnName string
 	DataType   string
 	IsNullable string
 }
-
-// StructField armazena as propriedades do campo Go gerado
 type StructField struct {
-	GoName   string // Nome em CamelCase (ex: CreatedAt)
-	GoType   string // Tipo Go (ex: sql.NullTime)
-	JSONName string // Nome em snake_case (ex: created_at)
+	GoName   string
+	GoType   string
+	JSONName string
 }
 
-// StructConfig é passado para o template para gerar o arquivo
+// StructConfig foi atualizada para incluir os novos campos
 type StructConfig struct {
-	AppName             string // ex: dash
-	ModelName           string // ex: User
-	TableName           string // ex: users
-	PackageName         string // ex: model
-	SchemaName          string // ex: public
-	EntitiesPackagePath string
-	Fields              []StructField // Lista de campos
+	AppName               string // ex: dash
+	ModelName             string // ex: User (Capitalizado)
+	TableName             string // ex: users
+	PackageName           string // ex: entities (para o modelo)
+	SchemaName            string // ex: public
+	EntitiesPackagePath   string // ex: deskapp/src/apps/dash/model/entities
+	RepositoryPackageName string // ex: usuario (minúsculo)
+	Fields                []StructField
 }
 
 // MapTableToStruct é a função principal que executa o script
@@ -72,15 +65,18 @@ func MapTableToStruct() error {
 	reader := bufio.NewReader(os.Stdin)
 
 	// 1. Coletar informações do usuário
-	fmt.Print("📦 Nome do App (ex: dash): ")
+	fmt.Print("📦 Nome do App: ")
 	appName, _ := reader.ReadString('\n')
 	appName = strings.TrimSpace(appName)
 
-	fmt.Print("📜 Schema (ex: public): ")
+	fmt.Print("📜 Schema (public): ")
 	schemaName, _ := reader.ReadString('\n')
 	schemaName = strings.TrimSpace(schemaName)
+	if schemaName == "" {
+		schemaName = "public"
+	}
 
-	fmt.Print("🧾 Nome da Tabela (ex: users): ")
+	fmt.Print("🧾 Nome da Tabela: ")
 	tableName, _ := reader.ReadString('\n')
 	tableName = strings.TrimSpace(tableName)
 
@@ -96,15 +92,23 @@ func MapTableToStruct() error {
 		return fmt.Errorf("tabela '%s.%s' não encontrada ou está vazia", schemaName, tableName)
 	}
 
-	fmt.Printf("🔍 Encontradas %d colunas. Gerando struct...\n", len(columns))
+	fmt.Printf("🔍 Encontradas %d colunas. Gerando arquivos...\n", len(columns))
 
 	// 4. Montar configuração do Struct
+	modelName := snakeToCamel(tableName)
+	capitalizedModelName := titler.String(modelName)
+	entitiesPackagePath := filepath.Join("deskapp/src/apps", appName, "model", "entities")
+
 	config := StructConfig{
 		AppName:     appName,
-		ModelName:   snakeToCamel(tableName), // ex: users -> User
-		TableName:   tableName,
-		PackageName: "entities",
-		Fields:      make([]StructField, 0),
+		ModelName:   capitalizedModelName, // ex: Usuario
+		TableName:   tableName,            // ex: usuario
+		SchemaName:  schemaName,
+		PackageName: "entities", // Pacote para o arquivo de entidade
+		// Garante barras no padrão Go (linux)
+		EntitiesPackagePath:   strings.ReplaceAll(entitiesPackagePath, "\\", "/"),
+		RepositoryPackageName: strings.ToLower(tableName), // ex: usuario
+		Fields:                make([]StructField, 0),
 	}
 
 	imports := make(map[string]bool)
@@ -128,34 +132,27 @@ func MapTableToStruct() error {
 		})
 	}
 
-	// 5. Gerar o arquivo a partir do template
+	// === 5. GERAR ARQUIVO DE ENTIDADE (MODELO) ===
 	modelFileName := fmt.Sprintf("%s.go", tableName)
-	targetPath := filepath.Join("src", "apps", appName, "model", "entities", modelFileName)
+	modelTargetPath := filepath.Join("src", "apps", appName, "model", "entities", modelFileName)
 
-	if err := generateModelFile(targetPath, config, imports); err != nil {
+	if err := generateModelFile(modelTargetPath, config, imports); err != nil {
 		return fmt.Errorf("falha ao gerar arquivo de model: %v", err)
 	}
+	fmt.Printf("✅ Entidade '%s' gerada em: %s\n", config.ModelName, modelTargetPath)
 
-	capitalizedModelName := titler.String(config.ModelName)
+	// === 6. GERAR PACOTE DO REPOSITÓRIO (INTERFACE + REPOSITORY) ===
+	repoPackagePath := filepath.Join("src", "apps", appName, "model", "repository", config.RepositoryPackageName)
 
-	config.ModelName = capitalizedModelName
-	// Define o caminho de importação das entidades
-	entitiesPackagePath := filepath.Join("deskapp/src/apps", appName, "model", "entities")
-	// Garante barras no padrão Go (linux) e não Windows
-	config.EntitiesPackagePath = strings.ReplaceAll(entitiesPackagePath, "\\", "/")
-
-	fmt.Printf("✅ Struct '%s' gerado com sucesso em: %s\n", config.ModelName, targetPath)
-
-	repoFileName := fmt.Sprintf("%s_repository.go", tableName)
-	repoTargetPath := filepath.Join("src", "apps", appName, "model", "repository", repoFileName)
-
-	if err := generateRepositoryFile(repoTargetPath, config); err != nil {
-		return fmt.Errorf("falha ao gerar arquivo de repository: %v", err)
+	if err := generateRepositoryPackage(repoPackagePath, config); err != nil {
+		return fmt.Errorf("falha ao gerar pacote de repositório: %v", err)
 	}
+	fmt.Printf("✅ Repositório '%s' gerado em: %s/\n", config.ModelName, repoPackagePath)
+
 	return nil
 }
 
-// inspectTable busca os metadados das colunas
+// (inspectTable, mapPostgresTypeToGoType, snakeToCamel, titler permanecem iguais)
 func inspectTable(db *sql.DB, schemaName, tableName string) ([]ColumnInfo, error) {
 	query := `
 	SELECT column_name, data_type, is_nullable
@@ -164,13 +161,11 @@ func inspectTable(db *sql.DB, schemaName, tableName string) ([]ColumnInfo, error
 	  AND table_name = $2
 	ORDER BY ordinal_position;
 	`
-
 	rows, err := db.Query(query, schemaName, tableName)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-
 	var columns []ColumnInfo
 	for rows.Next() {
 		var col ColumnInfo
@@ -182,77 +177,62 @@ func inspectTable(db *sql.DB, schemaName, tableName string) ([]ColumnInfo, error
 	return columns, nil
 }
 
-// mapPostgresTypeToGoType converte tipos PG para Go (incluindo nulos)
 func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 	isNullableBool := strings.ToUpper(isNullable) == "YES"
-
 	switch strings.ToLower(pgType) {
 	case "character varying", "varchar", "text", "character", "char", "bpchar":
 		if isNullableBool {
 			return "sql.NullString"
 		}
 		return "string"
-
 	case "integer", "int", "int4":
 		if isNullableBool {
 			return "sql.NullInt32"
 		}
 		return "int"
-
 	case "smallint", "int2":
 		if isNullableBool {
 			return "sql.NullInt16"
 		}
 		return "int16"
-
 	case "bigint", "int8":
 		if isNullableBool {
 			return "sql.NullInt64"
 		}
 		return "int64"
-
 	case "boolean", "bool":
 		if isNullableBool {
 			return "sql.NullBool"
 		}
 		return "bool"
-
 	case "numeric", "decimal", "real", "float4", "double precision", "float8":
 		if isNullableBool {
 			return "sql.NullFloat64"
 		}
 		return "float64"
-
 	case "timestamp", "timestamp without time zone", "timestamp with time zone", "date", "time":
 		if isNullableBool {
 			return "sql.NullTime"
 		}
 		return "time.Time"
-
 	case "json", "jsonb":
 		if isNullableBool {
-			// json.RawMessage pode ser nulo por padrão
 			return "json.RawMessage"
 		}
-		return "json.RawMessage" // Ou []byte
-
+		return "json.RawMessage"
 	case "uuid":
 		if isNullableBool {
-			// Pode requerer uma lib (google/uuid) ou tratar como sql.NullString
 			return "sql.NullString"
 		}
 		return "string"
-
 	default:
 		return "interface{}"
 	}
 }
 
-// snakeToCamel converte snake_case para CamelCase
 func snakeToCamel(s string) string {
 	var result strings.Builder
 	capitalizeNext := true
-
 	for _, r := range s {
 		if r == '_' {
 			capitalizeNext = true
@@ -266,28 +246,25 @@ func snakeToCamel(s string) string {
 		}
 	}
 	// Tratar IDs
-	if result.String() == "Id" {
+	s = result.String()
+	if s == "Id" {
 		return "ID"
 	}
-	return result.String()
+	if strings.HasSuffix(s, "Id") {
+		return strings.TrimSuffix(s, "Id") + "ID"
+	}
+	return s
 }
 
-// Titler para capitalizar o nome do modelo
 var titler = cases.Title(language.Portuguese)
 
-// generateModelFile cria o arquivo .go final
-func generateModelFile(targetPath string, config StructConfig, imports map[string]bool) error {
+// --- FUNÇÕES DE GERAÇÃO DE ARQUIVO ---
 
-	// ⬇️ === TEMPLATE ATUALIZADO ===
-	// Adicionamos o método Columns()
+// generateModelFile prepara o template e os imports para o arquivo de entidade
+func generateModelFile(targetPath string, config StructConfig, imports map[string]bool) error {
 	const modelTemplate = `package {{.PackageName}}
 
 // <IMPORT_BLOCK> // Placeholder para importações dinâmicas
-
-// DBScanner define a interface para Scan, implementada por *sql.Row e *sql.Rows.
-type DBScanner interface {
-	Scan(dest ...any) error
-}
 
 // {{.ModelName}} representa a tabela {{.TableName}} do banco de dados
 type {{.ModelName}} struct {
@@ -314,26 +291,22 @@ func (m *{{.ModelName}}) ScanRow(row DBScanner) error {
 	)
 }
 `
-	// --- O resto da sua função permanece exatamente igual ---
-
-	// As importações reais necessárias...
+	// Adiciona imports dinâmicos
 	actualImports := map[string]bool{
-		"database/sql": true,
+		"database/sql": true, // Sempre necessário para DBScanner
+	}
+	if imports["time"] {
+		actualImports["time"] = true
+	}
+	if imports["encoding/json"] {
+		actualImports["encoding/json"] = true
 	}
 
-	for _, field := range config.Fields {
-		if strings.Contains(field.GoType, " time.") || strings.Contains(field.GoType, "sql.NullTime") {
-			actualImports["time"] = true
-		}
-		if strings.Contains(field.GoType, " sql.") {
-			actualImports["database/sql"] = true
-		}
-		if strings.Contains(field.GoType, " json.") {
-			actualImports["encoding/json"] = true
-		}
-	}
+	// (Adicionado do seu exemplo) Referência ao DBScanner do core
+	coreEntitiesPath := strings.ReplaceAll(filepath.Join("deskapp/src/apps", "core", "model", "entities"), "\\", "/")
+	actualImports[coreEntitiesPath] = true
 
-	// Criar o conteúdo das importações dinamicamente
+	// Constrói o bloco de importação
 	var importStr strings.Builder
 	importStr.WriteString("import (\n")
 	for imp := range actualImports {
@@ -341,98 +314,99 @@ func (m *{{.ModelName}}) ScanRow(row DBScanner) error {
 	}
 	importStr.WriteString(")\n")
 
-	// Substituir o placeholder <IMPORT_BLOCK> pelo bloco de importações
+	// Substitui o placeholder
 	finalTemplate := strings.Replace(modelTemplate, "// <IMPORT_BLOCK>", importStr.String(), 1)
 
-	// Capitalizar ModelName
-	config.ModelName = titler.String(config.ModelName)
+	// Atualiza a assinatura do ScanRow para usar o DBScanner do core
+	finalTemplate = strings.Replace(finalTemplate, "func (m *{{.ModelName}}) ScanRow(row DBScanner) error {", "func (m *{{.ModelName}}) ScanRow(row entities.DBScanner) error {", 1)
+	finalTemplate = strings.Replace(finalTemplate, "type DBScanner interface {", "// DBScanner define a interface para Scan, implementada por *sql.Row e *sql.Rows.\ntype DBScanner interface {", 1)
 
-	tmpl, err := template.New("model").Parse(finalTemplate)
-	if err != nil {
-		return fmt.Errorf("erro ao parsear template: %v", err)
-	}
 
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, config); err != nil {
-		return fmt.Errorf("erro ao executar template: %v", err)
-	}
-
-	// Formata o código gerado
-	formattedSource, err := format.Source(buf.Bytes())
-	if err != nil {
-		fmt.Printf("⚠️  Aviso: falha ao formatar o código gerado: %v\n", err)
-		formattedSource = buf.Bytes()
-	}
-
-	// Garantir que o diretório existe
-	dir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("erro ao criar diretório %s: %v", dir, err)
-	}
-
-	// Escrever o arquivo formatado
-	if err := os.WriteFile(targetPath, formattedSource, 0644); err != nil {
-		return fmt.Errorf("erro ao escrever arquivo: %v", err)
-	}
-
-	return nil
+	return generateFile(targetPath, finalTemplate, config)
 }
 
-// generateRepositoryFile cria o arquivo .go do repositório
-// <<< INÍCIO DA FUNÇÃO ATUALIZADA >>>
+// generateRepositoryPackage cria o diretório e os arquivos (interface.go, repository.go)
+func generateRepositoryPackage(targetPath string, config StructConfig) error {
+	// Garante que o diretório (ex: .../repository/usuario) exista
+	if err := os.MkdirAll(targetPath, 0755); err != nil {
+		return fmt.Errorf("erro ao criar diretório do pacote de repositório %s: %v", targetPath, err)
+	}
 
-// generateRepositoryFile cria o arquivo .go do repositório especializado
-func generateRepositoryFile(targetPath string, config StructConfig) error {
-	// NOTA: O import do BaseRepository parece fixo com base nos seus arquivos.
-	// Ajuste "deskapp/src/apps/core/model/repository" se este caminho for dinâmico.
-	const repositoryTemplate = `package repository
+	// --- 1. Gerar repository.go ---
+	// Baseado em: repository.go
+	const repositoryTemplate = `package {{.RepositoryPackageName}}
 
 import (
 	"database/sql"
 	"deskapp/src/apps/core/model/repository"
+	"{{.EntitiesPackagePath}}"
 )
 
 // {{.ModelName}}Repository é o repositório para a entidade {{.ModelName}}
 type {{.ModelName}}Repository struct {
-	*repository.BaseRepository
+	*repository.BaseRepository[entities.{{.ModelName}}, *entities.{{.ModelName}}]
 }
 
 // New{{.ModelName}}Repository cria um novo {{.ModelName}}Repository
 func New{{.ModelName}}Repository(db *sql.DB) *{{.ModelName}}Repository {
-	base := repository.NewBaseRepository(db, "{{.TableName}}", "{{.SchemaName}}")
+	base := repository.NewBaseRepository[entities.{{.ModelName}}](db, "{{.TableName}}", "{{.SchemaName}}")
 	return &{{.ModelName}}Repository{
 		BaseRepository: base,
 	}
 }
 `
-	// O ModelName já deve vir capitalizado da função MapTableToStruct
+	repoFilePath := filepath.Join(targetPath, "repository.go")
+	if err := generateFile(repoFilePath, repositoryTemplate, config); err != nil {
+		return err
+	}
 
-	tmpl, err := template.New("repository").Parse(repositoryTemplate)
+	// --- 2. Gerar interface.go ---
+	// Baseado em: interface.go
+	const interfaceTemplate = `package {{.RepositoryPackageName}}
+
+import (
+	"context"
+	"deskapp/src/apps/core/model/repository"
+	"{{.EntitiesPackagePath}}"
+)
+
+type I{{.ModelName}}QueryBuilder = repository.IQueryBuilder[entities.{{.ModelName}}, *entities.{{.ModelName}}]
+
+type I{{.ModelName}}Repository interface {
+	// Where retorna o QueryBuilder específico.
+	Where(ctx context.Context, queryFragment string, arg any) I{{.ModelName}}QueryBuilder
+}
+`
+	ifaceFilePath := filepath.Join(targetPath, "interface.go")
+	if err := generateFile(ifaceFilePath, interfaceTemplate, config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateFile é um helper refatorado para criar um arquivo a partir de um template
+func generateFile(targetPath string, templateContent string, config StructConfig) error {
+	tmpl, err := template.New(targetPath).Parse(templateContent)
 	if err != nil {
-		return fmt.Errorf("erro ao parsear template do repositório: %v", err)
+		return fmt.Errorf("erro ao parsear template para %s: %v", targetPath, err)
 	}
 
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, config); err != nil {
-		return fmt.Errorf("erro ao executar template do repositório: %v", err)
+		return fmt.Errorf("erro ao executar template para %s: %v", targetPath, err)
 	}
 
 	// Formata o código gerado
 	formattedSource, err := format.Source(buf.Bytes())
 	if err != nil {
-		fmt.Printf("⚠️  Aviso: falha ao formatar o código do repositório gerado: %v\n", err)
+		fmt.Printf("⚠️  Aviso: falha ao formatar o código para %s: %v\n", targetPath, err)
 		formattedSource = buf.Bytes()
-	}
-
-	// Garantir que o diretório existe
-	dir := filepath.Dir(targetPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("erro ao criar diretório %s: %v", dir, err)
 	}
 
 	// Escrever o arquivo formatado
 	if err := os.WriteFile(targetPath, formattedSource, 0644); err != nil {
-		return fmt.Errorf("erro ao escrever arquivo do repositório: %v", err)
+		return fmt.Errorf("erro ao escrever arquivo %s: %v", targetPath, err)
 	}
 
 	return nil

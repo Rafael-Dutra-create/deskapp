@@ -36,10 +36,7 @@
 
 {{define "content"}}
 <div class="{{.LowerName}}-container">
-    <header class="app-header">
-        <h1>App {{.Name}}</h1>
-        <p>Bem-vindo ao app {{.User.Email.String}}</p>
-    </header>
+    {{template "meuCard" .}}
     <div>
         <canvas style="background-color: aliceblue;" id="myChart"></canvas>
     </div>
