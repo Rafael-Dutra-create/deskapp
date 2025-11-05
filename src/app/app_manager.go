@@ -104,7 +104,7 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		// Encontra o 'base.html'
 		if file == "templates/base.html" || strings.HasSuffix(file, "/base.html") {
 			baseLayoutFile = file
-			continue // Não o adicione a nenhuma outra lista
+			continue 
 		}
 
 		if strings.Contains(file, "layouts/") {

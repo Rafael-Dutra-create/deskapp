@@ -355,7 +355,7 @@ type {{.UpperName}}Controller struct {
 }
 
 func New{{.UpperName}}Controller(app app.AppInterface, view *view.View) *{{.UpperName}}Controller {
-	base := controller.NewBaseController(app, view, "{{.LowerName}} controller")
+	base := controller.NewBaseController(app, "{{.LowerName}} controller")
 	return &{{.UpperName}}Controller{
 		BaseController: base,
 	}
@@ -373,58 +373,6 @@ func (c *{{.UpperName}}Controller) Index(ctx *gin.Context) {
 	// ATENÇÃO: O nome do template agora é "{{.LowerName}}_index"
 	// e usamos ctx.HTML, não c.Render
 	ctx.HTML(http.StatusOK, "{{.LowerName}}_index", data)
-}
-
-func (c *{{.UpperName}}Controller) Get{{.UpperName}}(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, map[string]interface{}{
-		"data": []map[string]interface{}{
-			{
-				"id":   "1",
-				"name": "Exemplo {{.Name}} 1",
-			},
-			{
-				"id":   "2", 
-				"name": "Exemplo {{.Name}} 2",
-			},
-		},
-		"total": 2,
-		"app":   "{{.LowerName}}",
-	})
-}
-
-func (c *{{.UpperName}}Controller) Create{{.UpperName}}(ctx *gin.Context) {
-	// A verificação de método (r.Method != http.MethodPost)
-	// não é mais necessária, pois o Gin cuida disso na definição da rota (router.POST)
-	
-	ctx.JSON(http.StatusCreated, map[string]interface{}{
-		"message": "{{.Name}} criado com sucesso",
-		"app":     "{{.LowerName}}",
-		"id":      "12345",
-	})
-}
-
-func (c *{{.UpperName}}Controller) Update{{.UpperName}}(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, map[string]interface{}{
-		"message": "{{.Name}} atualizado com sucesso",
-		"app":     "{{.LowerName}}",
-	})
-}
-
-func (c *{{.UpperName}}Controller) Delete{{.UpperName}}(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, map[string]interface{}{
-		"message": "{{.Name}} deletado com sucesso", 
-		"app":     "{{.LowerName}}",
-	})
-}
-
-// APIHandler - Exemplo de endpoint de API
-func (c *{{.UpperName}}Controller) APIHandler(ctx *gin.Context) {
-	ctx.JSON(http.StatusOK, map[string]interface{}{
-		"status":  "success",
-		"app":     "{{.LowerName}}",
-		"version": "1.0.0",
-		"data":    "Dados da API do app {{.Name}}",
-	})
 }
 `
 
@@ -448,7 +396,7 @@ func (a *{{.UpperName}}App) RegisterRoutes(router *gin.Engine) {
         switch ctrl := controllerInterface.(type) {
         case *controller.{{.UpperName}}Controller:
             // Rotas básicas
-            dashGroup.GET("/{{.LowerName}}/", ctrl.Index)
+            dashGroup.GET("/", ctrl.Index)
         }
     }
 }
@@ -544,32 +492,9 @@ const templateIndex = `{{define "title"}}{{.Name}} - DeskApp{{end}}
                         <span class="stat-label">Pastas Criadas</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-number">8+</span>
+                        <span class="stat-number">1+</span>
                         <span class="stat-label">Rotas Configuradas</span>
                     </div>
-                </div>
-            </div>
-
-            <div class="quick-actions">
-                <h3>🔗 Ações Rápidas:</h3>
-                <div class="actions-grid">
-                    <a href="/{{.LowerName}}/" class="action-btn">
-                        <span class="action-icon">👀</span>
-                        <span>Ver App em Ação</span>
-                    </a>
-                    <a href="/{{.LowerName}}/get/" class="action-btn">
-                        <span class="action-icon">📋</span>
-                        <span>Ver Lista (GET)</span>
-                    </a>
-                    <!-- Exemplo de como acionar um POST (requer JS ou formulário) -->
-                    <a href="#" onclick="fetch('/{{.LowerName}}/create/', { method: 'POST' }).then(res => res.json()).then(console.log)" class="action-btn">
-                        <span class="action-icon">➕</span>
-                        <span>Criar Item (POST)</span>
-                    </a>
-                    <a href="/api/{{.LowerName}}/" class="action-btn">
-                        <span class="action-icon">🔌</span>
-                        <span>Testar API</span>
-                    </a>
                 </div>
             </div>
 

@@ -3,7 +3,6 @@ package main
 import (
 	"deskapp/src/app"
 	"deskapp/src/apps/core"
-	"deskapp/src/apps/dash"
 	"deskapp/src/internal/config"
 	"deskapp/src/internal/database"
 	"deskapp/src/internal/utils"
@@ -33,7 +32,6 @@ func main() {
 	
 	app := app.NewAppManager(logger, cfg, StaticFS, TemplateFS)
 	app.RegisterApp(core.NewCoreApp(logger, cfg))
-	app.RegisterApp(dash.NewDashApp(logger, cfg))
 	
 
 	app.RegisterAllRoutes()
