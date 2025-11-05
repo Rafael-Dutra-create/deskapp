@@ -64,7 +64,8 @@ clean:
 	go clean --cache
 
 coverprofile:
-	go test -coverprofile=coverage.out ./... 
+	go test $$(go list -f '{{if .TestGoFiles}}{{.ImportPath}}{{end}}' ./...) --cover -coverprofile cover.out
+	go tool cover -html=cover.out -o=coverage.html
 
 
 # Desenvolvimento com auto-reload (se tiver air instalado)
@@ -80,8 +81,7 @@ dev:
 # Testes
 test:
 	@echo "🧪 Executando testes..."
-	go test ./...
-
+	go test $$(go list -f '{{if .TestGoFiles}}{{.ImportPath}}{{end}}' ./...)
 # Verificar formatação
 fmt:
 	@echo "🎨 Verificando formatação..."

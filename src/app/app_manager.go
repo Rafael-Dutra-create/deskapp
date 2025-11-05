@@ -54,18 +54,22 @@ func NewAppManager(logger *utils.Logger, cfg *config.Config, staticFS fs.FS, tem
 }
 
 func (am *AppManager) setupMultiTemplates() {
+	// Cria o renderizador multitemplate
+	render := multitemplate.NewRenderer()
+	am.router.HTMLRender = render
+
+	
+
 	if am.templateFS == nil {
 		am.logger.Warning("TemplateFS é nil - templates não serão carregados")
 		return
 	}
 
 	am.logger.Info("Iniciando carregamento de templates com multitemplate...")
-
-	// Cria o renderizador multitemplate
-	render := multitemplate.NewRenderer()
-
 	// Carrega templates usando o padrão de layouts e includes
 	am.loadTemplatesFromFS(render)
+
+	
 
 	// Define o renderizador no router
 	am.router.HTMLRender = render

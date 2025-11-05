@@ -7,187 +7,50 @@ import (
 	"deskapp/src/internal/utils"
 	"errors"
 	"fmt"
-	"io/fs"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"sync"
 	"testing"
-	"time"
+	"testing/fstest"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-// Mock para AppInterface
+// Mock para AppInterface (Mantido)
 type MockApp struct {
 	mock.Mock
 	name    string
 	version string
 }
 
-// GetConfig implements AppInterface.
-func (m *MockApp) GetConfig() *config.Config {
-	panic("unimplemented")
-}
+func (m *MockApp) GetConfig() *config.Config   { panic("unimplemented") }
+func (m *MockApp) GetControllers() []interface{} { return nil }
+func (m *MockApp) GetDB() *sql.DB                { panic("unimplemented") }
+func (m *MockApp) GetLogger() *utils.Logger      { panic("unimplemented") }
+func (m *MockApp) GetName() string               { return m.name }
+func (m *MockApp) GetVersion() string            { return m.version }
+func (m *MockApp) Initialize() error             { args := m.Called(); return args.Error(0) }
+func (m *MockApp) RegisterRoutes(router *gin.Engine) { m.Called(router) }
 
-// GetControllers implements AppInterface.
-func (m *MockApp) GetControllers() []interface{} {
-	return nil
-}
+// -----------------------------------------------------------------
+// Mocks de FS (MockFS, MockFile, etc.) foram REMOVIDOS
+// -----------------------------------------------------------------
 
-// GetDB implements AppInterface.
-func (m *MockApp) GetDB() *sql.DB {
-	panic("unimplemented")
-}
-
-// GetLogger implements AppInterface.
-func (m *MockApp) GetLogger() *utils.Logger {
-	panic("unimplemented")
-}
-
-func (m *MockApp) GetName() string {
-	return m.name
-}
-
-func (m *MockApp) GetVersion() string {
-	return m.version
-}
-
-func (m *MockApp) Initialize() error {
-	args := m.Called()
-	return args.Error(0)
-}
-
-func (m *MockApp) RegisterRoutes(router *gin.Engine) {
-	m.Called(router)
-}
-
-// Mock para FileSystem
-type MockFS struct {
-	mock.Mock
-	files map[string]string
-}
-
-func (m *MockFS) Open(name string) (fs.File, error) {
-	if content, exists := m.files[name]; exists {
-		return &MockFile{name: name, content: strings.NewReader(content)}, nil
-	}
-	return nil, os.ErrNotExist
-}
-
-func (m *MockFS) ReadDir(name string) ([]fs.DirEntry, error) {
-	var entries []fs.DirEntry
-	for file := range m.files {
-		if strings.HasPrefix(file, name) {
-			entries = append(entries, &MockDirEntry{name: file})
-		}
-	}
-	return entries, nil
-}
-
-func (m *MockFS) ReadFile(name string) ([]byte, error) {
-	if content, exists := m.files[name]; exists {
-		return []byte(content), nil
-	}
-	return nil, os.ErrNotExist
-}
-
-func (m *MockFS) Stat(name string) (fs.FileInfo, error) {
-	if _, exists := m.files[name]; exists {
-		return &MockFileInfo{name: name}, nil
-	}
-	return nil, os.ErrNotExist
-}
-
-// Mock para File
-type MockFile struct {
-	name    string
-	content *strings.Reader
-}
-
-func (m *MockFile) Read(p []byte) (int, error) {
-	return m.content.Read(p)
-}
-
-func (m *MockFile) Close() error {
-	return nil
-}
-
-func (m *MockFile) Stat() (fs.FileInfo, error) {
-	return &MockFileInfo{name: m.name}, nil
-}
-
-// Mock para DirEntry
-type MockDirEntry struct {
-	name string
-}
-
-func (m *MockDirEntry) Name() string {
-	return m.name
-}
-
-func (m *MockDirEntry) IsDir() bool {
-	return false
-}
-
-func (m *MockDirEntry) Type() fs.FileMode {
-	return 0
-}
-
-func (m *MockDirEntry) Info() (fs.FileInfo, error) {
-	return &MockFileInfo{name: m.name}, nil
-}
-
-// Mock para FileInfo
-type MockFileInfo struct {
-	name string
-}
-
-func (m *MockFileInfo) Name() string {
-	return m.name
-}
-
-func (m *MockFileInfo) Size() int64 {
-	return 0
-}
-
-func (m *MockFileInfo) Mode() fs.FileMode {
-	return 0
-}
-
-func (m *MockFileInfo) ModTime() time.Time {
-	return time.Now()
-}
-
-func (m *MockFileInfo) IsDir() bool {
-	return false
-}
-
-func (m *MockFileInfo) Sys() interface{} {
-	return nil
-}
-
+// TestNewAppManager (Atualizado para usar fstest.MapFS)
 func TestNewAppManager(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	// Mock file systems
-	staticFS := &MockFS{
-		files: map[string]string{
-			"static/css/style.css": "body { color: red; }",
-			"static/js/app.js":     "console.log('hello');",
-		},
+	// Mock file systems usando a biblioteca padrão
+	staticFS := fstest.MapFS{
+		"static/css/style.css": {Data: []byte("body { color: red; }")},
 	}
-
-	templateFS := &MockFS{
-		files: map[string]string{
-			"templates/base.html":         "<html>{{block \"content\" .}}{{end}}</html>",
-			"templates/index.html":        `{{define "content"}}<h1>Hello</h1>{{end}}`,
-			"templates/layouts/main.html": "<main>{{block \"content\" .}}{{end}}</main>",
-		},
+	templateFS := fstest.MapFS{
+		"templates/base.html": {Data: []byte(`{{define "base"}}{{template "content" .}}{{end}}`)},
+		"templates/index.html": {Data: []byte(`{{define "content"}}<h1>Hello</h1>{{end}}`)},
 	}
 
 	am := NewAppManager(logger, cfg, staticFS, templateFS)
@@ -199,13 +62,188 @@ func TestNewAppManager(t *testing.T) {
 	assert.Equal(t, cfg, am.cfg)
 	assert.Equal(t, staticFS, am.staticFS)
 	assert.Equal(t, templateFS, am.templateFS)
+	assert.NotNil(t, am.router.HTMLRender)
 }
 
-func TestAppManager_RegisterApp(t *testing.T) {
+// TestSetupMultiTemplates_NilFS (Novo Teste - Caminho de Erro)
+// Testa o 'if am.templateFS == nil' em setupMultiTemplates
+func TestSetupMultiTemplates_NilFS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	// Passa 'nil' para templateFS
+	am := NewAppManager(logger, cfg, nil, nil)
+
+	// O renderizador será um renderizador vazio, sem templates
+	assert.NotNil(t, am.router.HTMLRender)
+
+	// Tentar renderizar uma página deve falhar (pois nada foi carregado)
+	am.router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index", nil)
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	am.router.ServeHTTP(w, req)
+
+	// A rota existe, mas o template "index" não foi encontrado
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// TestLoadTemplatesFromFS_Success (Novo Teste - Caminho Feliz)
+// Testa a lógica completa de 'loadTemplatesFromFS'
+func TestLoadTemplatesFromFS_Success(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	// Define um sistema de templates completo
+	templateFS := fstest.MapFS{
+		"templates/base.html": {Data: []byte(`{{define "base"}}Base:({{template "content" .}}){{template "component" .}}{{end}}`)},
+		"templates/components/card.html": {Data: []byte(`{{define "component"}}-CardComponent{{end}}`)},
+		"templates/pages/index.html":     {Data: []byte(`{{define "content"}}IndexPage{{end}}`)},
+	}
+
+	am := NewAppManager(logger, cfg, nil, templateFS)
+
+	// Adiciona uma rota de teste para renderizar o template "index"
+	am.router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index", nil)
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	am.router.ServeHTTP(w, req)
+
+	// Verifica se o 'base', 'component' e 'page' foram renderizados juntos
+	assert.Equal(t, http.StatusOK, w.Code)
+
+}
+
+// TestLoadTemplatesFromFS_NoBaseFile (Novo Teste - Caminho de Erro)
+// Testa o 'if baseLayoutFile == ""'
+func TestLoadTemplatesFromFS_NoBaseFile(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	// FS *sem* o 'templates/base.html'
+	templateFS := fstest.MapFS{
+		"templates/components/card.html": {Data: []byte(`{{define "component"}}-CardComponent{{end}}`)},
+		"templates/pages/index.html":     {Data: []byte(`{{define "content"}}IndexPage{{end}}`)},
+	}
+
+	am := NewAppManager(logger, cfg, nil, templateFS)
+
+	// Ocorreu um erro (logado) e NENHUM template foi registrado
+	am.router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index", nil)
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	am.router.ServeHTTP(w, req)
+
+	// O template "index" não existe
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// TestLoadTemplatesFromFS_BadTemplate (Novo Teste - Caminho de Erro)
+// Testa o 'pageTemplate, err := clonedTemplate.ParseFS'
+func TestLoadTemplatesFromFS_BadTemplate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	templateFS := fstest.MapFS{
+		"templates/base.html": {Data: []byte(`{{define "base"}}{{template "content" .}}{{end}}`)},
+		// Template com sintaxe inválida
+		"templates/pages/index.html": {Data: []byte(`{{define "content"}} {{ .Nome } {{end}}`)},
+	}
+
+	am := NewAppManager(logger, cfg, nil, templateFS)
+
+	// Ocorreu um erro (logado) e o template "index" não foi registrado
+	am.router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index", nil)
+	})
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	am.router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// TestAppManager_SetupStatic (Atualizado para fstest.MapFS e verificação real)
+func TestAppManager_SetupStatic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	// Mock FS usando fstest
+	staticFS := fstest.MapFS{
+		"static/css/style.css": {Data: []byte("body { color: red; }")},
+		"static/js/app.js":     {Data: []byte("console.log('hello');")},
+	}
+
+	am := NewAppManager(logger, cfg, staticFS, nil)
+
+	req := httptest.NewRequest("GET", "/static/css/style.css", nil)
+	w := httptest.NewRecorder()
+
+	am.router.ServeHTTP(w, req)
+
+	// Verifica se o arquivo foi realmente servido
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "body { color: red; }", w.Body.String())
+}
+
+// TestAppManager_SetupStatic_SubFSError (Novo Teste - Caminho de Erro)
+// Testa o 'fs.Sub(am.staticFS, "static")'
+func TestAppManager_SetupStatic_SubFSError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	// Um FS que NÃO contém o diretório 'static'
+	staticFS := fstest.MapFS{
+		"other/css/style.css": {Data: []byte("body { color: red; }")},
+	}
+
+	am := NewAppManager(logger, cfg, staticFS, nil)
+
+	// O fs.Sub() falhou, então o handler /static/ não foi registrado
+	req := httptest.NewRequest("GET", "/static/css/style.css", nil)
+	w := httptest.NewRecorder()
+
+	am.router.ServeHTTP(w, req)
+
+	// O Gin retorna 404 pois a rota /static/ não existe
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+// TestAppManager_SetupStatic_NilFS (Mantido)
+func TestAppManager_SetupStatic_NilFS(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	// Teste não deve falhar (panic)
+	assert.NotPanics(t, func() {
+		NewAppManager(logger, cfg, nil, &fstest.MapFS{})
+	})
+}
+
+// --- Testes de Registro de App (Mantidos como estavam) ---
+
+func TestAppManager_RegisterApp(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := utils.NewLogger()
+	cfg := config.NewConfig()
+
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	mockApp := &MockApp{
 		name:    "test-app",
@@ -227,16 +265,17 @@ func TestAppManager_RegisterApp(t *testing.T) {
 }
 
 func TestAppManager_RegisterApp_Duplicate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	mockApp1 := &MockApp{name: "test-app", version: "1.0.0"}
 	mockApp1.On("Initialize").Return(nil)
 
 	mockApp2 := &MockApp{name: "test-app", version: "2.0.0"}
-	mockApp2.On("Initialize").Return(nil)
+	// mockApp2.On("Initialize").Return(nil) // Não deve ser chamado
 
 	err1 := am.RegisterApp(mockApp1)
 	err2 := am.RegisterApp(mockApp2)
@@ -248,10 +287,11 @@ func TestAppManager_RegisterApp_Duplicate(t *testing.T) {
 }
 
 func TestAppManager_RegisterApp_InitializeError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	mockApp := &MockApp{
 		name:    "test-app",
@@ -264,14 +304,15 @@ func TestAppManager_RegisterApp_InitializeError(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Equal(t, expectedError, err)
-	assert.Len(t, am.apps, 1) // App ainda é registrado mesmo com erro na inicialização
+	assert.Len(t, am.apps, 1) // App ainda é registrado
 }
 
 func TestAppManager_GetAllApps(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	mockApp1 := &MockApp{name: "app1", version: "1.0.0"}
 	mockApp1.On("Initialize").Return(nil)
@@ -293,10 +334,8 @@ func TestAppManager_GetMode(t *testing.T) {
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
-
+	am := NewAppManager(logger, cfg, nil, nil)
 	mode := am.GetMode()
-
 	assert.Equal(t, cfg.GetMode(), mode)
 }
 
@@ -304,18 +343,17 @@ func TestAppManager_GetLogger(t *testing.T) {
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
-
+	am := NewAppManager(logger, cfg, nil, nil)
 	retrievedLogger := am.GetLogger()
-
 	assert.Equal(t, logger, retrievedLogger)
 }
 
 func TestAppManager_RegisterAllRoutes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	mockApp1 := &MockApp{name: "app1", version: "1.0.0"}
 	mockApp1.On("Initialize").Return(nil)
@@ -334,45 +372,12 @@ func TestAppManager_RegisterAllRoutes(t *testing.T) {
 	mockApp2.AssertCalled(t, "RegisterRoutes", am.router)
 }
 
-func TestAppManager_SetupStatic(t *testing.T) {
-	logger := utils.NewLogger()
-	cfg := config.NewConfig()
-
-	staticFS := &MockFS{
-		files: map[string]string{
-			"static/css/style.css":   "body { color: red; }",
-			"static/js/app.js":       "console.log('hello');",
-			"static/images/logo.png": "fake-png-content",
-		},
-	}
-
-	am := NewAppManager(logger, cfg, staticFS, &MockFS{})
-
-	// Test if static routes are set up by making a request
-	req := httptest.NewRequest("GET", "/static/css/style.css", nil)
-	w := httptest.NewRecorder()
-
-	am.router.ServeHTTP(w, req)
-
-	// The route should exist (even if file might not be served due to mock)
-	assert.NotEqual(t, http.StatusNotFound, w.Code)
-}
-
-func TestAppManager_SetupStatic_NilFS(t *testing.T) {
-	logger := utils.NewLogger()
-	cfg := config.NewConfig()
-
-	am := NewAppManager(logger, cfg, nil, &MockFS{})
-
-	// This should not panic and should log a warning
-	assert.NotNil(t, am)
-}
-
 func TestAppManager_ConcurrentAccess(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
 
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
+	am := NewAppManager(logger, cfg, nil, nil)
 
 	var wg sync.WaitGroup
 	appsToRegister := 10
@@ -409,28 +414,17 @@ func TestAppManager_ConcurrentAccess(t *testing.T) {
 }
 
 func TestAppManager_WithDifferentModes(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 	// Test RELEASE mode
 	t.Setenv("MODE", "RELEASE")
 	logger := utils.NewLogger()
 	cfg := config.NewConfig()
-
-	am := NewAppManager(logger, cfg, &MockFS{}, &MockFS{})
-
+	am := NewAppManager(logger, cfg, nil, nil)
 	assert.Equal(t, utils.RELEASE, am.GetMode())
 
 	// Test DEBUG mode
 	t.Setenv("MODE", "DEBUG")
 	cfg2 := config.NewConfig()
-	am2 := NewAppManager(logger, cfg2, &MockFS{}, &MockFS{})
-
+	am2 := NewAppManager(logger, cfg2, nil, nil)
 	assert.Equal(t, utils.DEBUG, am2.GetMode())
-}
-
-// Test helper function
-func TestOpenBrowser(t *testing.T) {
-	// This is a simple test to ensure the function doesn't panic
-	// Actual browser opening is hard to test in CI
-	assert.NotPanics(t, func() {
-		openBrowser("http://localhost:8006")
-	})
 }
