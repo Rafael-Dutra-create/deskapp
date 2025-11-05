@@ -34,7 +34,10 @@ func NewAppManager(logger *utils.Logger, cfg *config.Config, staticFS fs.FS, tem
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	router := gin.Default()
+	router := gin.New()
+
+	router.Use(gin.Recovery())
+	router.Use(gin.Logger())
 
 	am := &AppManager{
 		apps:       make(map[string]AppInterface),
@@ -58,23 +61,23 @@ func (am *AppManager) setupMultiTemplates() {
 	render := multitemplate.NewRenderer()
 	am.router.HTMLRender = render
 
-	
-
 	if am.templateFS == nil {
 		am.logger.Warning("TemplateFS é nil - templates não serão carregados")
 		return
 	}
 
-	am.logger.Info("Iniciando carregamento de templates com multitemplate...")
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Info("Iniciando carregamento de templates com multitemplate...")
+	}
 	// Carrega templates usando o padrão de layouts e includes
 	am.loadTemplatesFromFS(render)
-
-	
 
 	// Define o renderizador no router
 	am.router.HTMLRender = render
 
-	am.logger.Info("✅ Sistema multitemplate configurado com sucesso!")
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Info("✅ Sistema multitemplate configurado com sucesso!")
+	}
 }
 
 func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
@@ -104,7 +107,7 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		// Encontra o 'base.html'
 		if file == "templates/base.html" || strings.HasSuffix(file, "/base.html") {
 			baseLayoutFile = file
-			continue 
+			continue
 		}
 
 		if strings.Contains(file, "layouts/") {
@@ -121,13 +124,15 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		return
 	}
 
-	am.logger.Infof("📊 Layout base: %s", baseLayoutFile)
-	am.logger.Infof("📊 Layouts adicionais: %d", len(layouts))
-	am.logger.Infof("📊 Componentes: %d", len(components))
-	am.logger.Infof("📊 Páginas: %d", len(pages))
-	am.logger.Infof("📊 Layouts encontrados: %d", len(layouts))
-	am.logger.Infof("📊 Componentes encontrados: %d", len(components))
-	am.logger.Infof("📊 Páginas encontradas: %d", len(pages))
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Infof("📊 Layout base: %s", baseLayoutFile)
+		am.logger.Infof("📊 Layouts adicionais: %d", len(layouts))
+		am.logger.Infof("📊 Componentes: %d", len(components))
+		am.logger.Infof("📊 Páginas: %d", len(pages))
+		am.logger.Infof("📊 Layouts encontrados: %d", len(layouts))
+		am.logger.Infof("📊 Componentes encontrados: %d", len(components))
+		am.logger.Infof("📊 Páginas encontradas: %d", len(pages))
+	}
 
 	// 2. Carrega todos os Layouts e Componentes UMA ÚNICA VEZ
 	baseTemplate, err := template.New("base").ParseFS(am.templateFS, baseLayoutFile)
@@ -144,7 +149,9 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 			return
 		}
 	}
-	am.logger.Info("✅ Templates comuns (layouts + componentes) carregados.")
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Info("✅ Templates comuns (layouts + componentes) carregados.")
+	}
 
 	// 3. Para cada página, CLONA o template base e adiciona o arquivo da página
 	templateCount := 0
@@ -169,9 +176,8 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 		templateCount++
 	}
 
-	am.logger.Infof("🎉 Total de %d páginas registradas com sucesso!", templateCount)
+	// am.logger.Infof("🎉 Total de %d páginas registradas com sucesso!", templateCount)
 }
-
 
 func (am *AppManager) SetupStatic() {
 	if am.staticFS == nil {
@@ -187,24 +193,31 @@ func (am *AppManager) SetupStatic() {
 	}
 	// Configura o StaticFS com o sub-filesystem
 	am.router.StaticFS("/static", http.FS(staticSubFS))
-	am.logger.Info("✅ Sistema de arquivos estáticos configurado em /static")
+
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Info("✅ Sistema de arquivos estáticos configurado em /static")
+	}
 
 	// Middleware para log de requisições estáticas
 	am.router.Use(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/static/") {
-			am.logger.Infof("📦 Requisição estática: %s", c.Request.URL.Path)
+			if am.cfg.GetMode() == utils.DEBUG {
+				am.logger.Infof("📦 Requisição estática: %s", c.Request.URL.Path)
+			}
 		}
 		c.Next()
 	})
 }
 
-// ... resto dos métodos permanece igual
 func (am *AppManager) RegisterAllRoutes() {
 	am.mu.RLock()
 	defer am.mu.RUnlock()
+	am.router.SetTrustedProxies([]string{"localhost"})
 
 	for name, app := range am.apps {
-		am.logger.Infof("Registrando rotas para: %s", name)
+		if am.cfg.GetMode() == utils.DEBUG {
+			am.logger.Infof("Registrando rotas para: %s", name)
+		}
 		app.RegisterRoutes(am.router)
 	}
 }
@@ -212,14 +225,11 @@ func (am *AppManager) RegisterAllRoutes() {
 func (am *AppManager) Init() {
 	host := fmt.Sprintf("http://localhost:%s", am.cfg.Port)
 
-	// Abrir o navegador automaticamente
-	go func() { 
+	go func() {
 		if !am.cfg.IsServer() {
 			openBrowser(host)
 		}
-		 }()
-
-	am.logger.Infof("Servidor rodando em %s", host)
+	}()
 
 	log.Fatal(am.router.Run(fmt.Sprintf(":%s", am.cfg.Port)))
 }
@@ -242,7 +252,9 @@ func (am *AppManager) RegisterApp(app AppInterface) error {
 	}
 
 	am.apps[appName] = app
-	am.logger.Infof("App registrado: %s v%s", appName, app.GetVersion())
+	if am.cfg.GetMode() == utils.DEBUG {
+		am.logger.Infof("App registrado: %s v%s", appName, app.GetVersion())
+	}
 
 	return app.Initialize()
 }
