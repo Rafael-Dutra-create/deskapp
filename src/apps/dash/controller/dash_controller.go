@@ -62,9 +62,8 @@ func (c *DashController) Index(ctx *gin.Context) {
     }
 
     repo := usuario.NewUsuarioRepository(c.GetApp().GetDB())
-    repo.Select(context.Background()).Query()
-    fmt.Printf("%+v\n", repo)
-    data["User"] = "user.Email.String"
+    usuarios, _ := repo.Select(context.Background()).Query()
+    data["User"] = usuarios[0]
 	ctx.HTML(http.StatusOK, "dash_index", data)
 }
 

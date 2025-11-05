@@ -2,15 +2,9 @@ package entities
 
 import (
 	"database/sql"
+	"deskapp/src/apps/core/model/entities"
 	"time"
 )
-
-// Placeholder para importações dinâmicas
-
-// DBScanner define a interface para Scan, implementada por *sql.Row e *sql.Rows.
-type DBScanner interface {
-	Scan(dest ...any) error
-}
 
 // Usuario representa a tabela usuario do banco de dados
 type Usuario struct {
@@ -45,7 +39,7 @@ func (m *Usuario) Columns() []string {
 }
 
 // ScanRow implementa a lógica de scan para um DBScanner (*sql.Row ou *sql.Rows).
-func (m *Usuario) ScanRow(row DBScanner) error {
+func (m *Usuario) ScanRow(row entities.DBScanner) error {
 	return row.Scan(
 		&m.Email,
 		&m.Cpf,
