@@ -214,7 +214,7 @@ func (am *AppManager) Init() {
 
 	// Abrir o navegador automaticamente
 	go func() { 
-		if am.GetMode() == utils.RELEASE {
+		if !am.cfg.IsServer() {
 			openBrowser(host)
 		}
 		 }()

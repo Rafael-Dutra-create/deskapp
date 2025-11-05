@@ -10,6 +10,7 @@ type Config struct {
 	DBDSN string
 	Port string
 	mode string
+	server string
 }
 
 func NewConfig() *Config {
@@ -17,6 +18,7 @@ func NewConfig() *Config {
 		DBDSN: os.Getenv("DATABASE_URL"),
 		Port: os.Getenv("PORT"),
 		mode: os.Getenv("MODE"),
+		server: os.Getenv("SERVER"),
 	}
 	cfg.Setup()
 
@@ -40,4 +42,8 @@ func (c *Config) GetMode() utils.MODE {
 		case "DEBUG": return utils.DEBUG
 		default: return utils.RELEASE
 	}
+}
+
+func (c *Config) IsServer() bool {
+	return strings.ToUpper(c.server) == "TRUE"
 }
