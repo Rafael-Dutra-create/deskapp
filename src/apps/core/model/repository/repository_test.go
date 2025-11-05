@@ -75,7 +75,7 @@ func TestInsert(t *testing.T) {
 	expectedSQL := `INSERT INTO "public"."users" (name, age) VALUES ($1, $2)`
 	mock.ExpectExec(regexp.QuoteMeta(expectedSQL)).
 		WithArgs("Test User", 30).
-		WillReturnResult(sqlmock.NewResult(1, 1)) // 1 = ID do insert, 1 = linha afetada
+		WillReturnResult(sqlmock.NewResult(1, 1)) 
 
 	err := repo.Insert(ctx, user)
 	if err != nil {

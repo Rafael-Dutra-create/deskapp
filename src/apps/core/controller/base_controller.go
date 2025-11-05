@@ -46,3 +46,7 @@ func (bc *BaseController) LogInfo(format string, args ...interface{}) {
 func (bc *BaseController) LogError(format string, args ...interface{}) {
 	bc.app.GetLogger().Errorf("[%s] "+format, append([]interface{}{bc.name}, args...)...)
 }
+
+func (bc *BaseController) LogWarning(format string, args ...interface{}) {
+	bc.app.GetLogger().Warningf("[%s] "+format, append([]interface{}{bc.name}, args...)...)
+}

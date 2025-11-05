@@ -37,7 +37,7 @@ func (c *DashController) Index(ctx *gin.Context) {
     resp, err := http.Get("https://estatapi.controllab.com/rodadas/mod/368?total=1&ano[]=2026")
 
     if err != nil {
-        c.GetLogger().Warningf("falha na requisição da API: %v", err)
+        c.LogWarning("falha na requisição da API: %v", err)
         data["Message"] = "Erro ao carregar dados da API."
     } else {
         defer resp.Body.Close()
@@ -49,7 +49,7 @@ func (c *DashController) Index(ctx *gin.Context) {
             // ... (log de erro de leitura do corpo)
             data["Message"] = "Erro ao ler corpo da resposta."
         } else if err := json.Unmarshal(body, &rodadasData); err != nil {
-            c.GetLogger().Warningf("falha ao decodificar JSON: %v", err)
+            c.LogWarning("falha ao decodificar JSON: %v", err)
             data["Message"] = "Erro ao decodificar dados da API."
         } else {
             data["Message"] = fmt.Sprintf("Dados carregados com sucesso! Total: %d", len(rodadasData))
@@ -57,7 +57,6 @@ func (c *DashController) Index(ctx *gin.Context) {
         }
     }
     data["User"] = "Victor"
-
 	ctx.HTML(http.StatusOK, "dash_index", data)
 }
 
