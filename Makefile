@@ -44,7 +44,7 @@ build-macos:
 	GOOS=darwin GOARCH=amd64 go build -o bin/$(APP_NAME) $(SRC_DIR)
 
 # Criar um novo app (executando o script alternativo, se existir)
-createapp:
+app:
 	@echo "📱 Criando novo app (alternativo)..."
 	go run $(SCRIPTS_DIR) create-app
     
@@ -52,6 +52,10 @@ createapp:
 tablemap:
 	@echo "🗺️ Mapeando tabela para struct..."
 	go run $(SCRIPTS_DIR) tablemap
+
+dto:
+	@echo "🗺️ Mapeando tabela para struct..."
+	go run $(SCRIPTS_DIR) create-dto
 	
 
 

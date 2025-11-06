@@ -8,12 +8,13 @@ O projeto foi pensado para ser escalável, limpo e extensível, com integração
 ## 🚀 Funcionalidades Principais
 
 - 🔧 **Arquitetura modular** (apps independentes como `core`, `dash`, etc.)
-- 🧩 **Sistema de templates dinâmicos** (com suporte a layouts base)
-- 💾 **Conexão com PostgreSQL** (via pool de conexões)
-- ⚙️ **Servidor HTTP com Gin** (rápido e fácil de estender)
-- 📦 **Assets estáticos embutidos** (via `embed.FS`)
-- 🧰 **Ferramentas internas** para criação de apps e mapeamento de tabelas
-- 🧪 **Testes automatizados** para camadas de aplicação
+- 🧩 **Sistema de templates dinâmicos** (com suporte a layouts base e components reutilizáveis)
+- 🧮 **Funções personalizadas em templates** (via `template.FuncMap`)
+- 💾 **Conexão com PostgreSQL**
+- ⚙️ **Servidor HTTP com Gin**
+- 📦 **Assets embutidos** (`embed.FS`)
+- 🧰 **Ferramentas internas CLI**
+- 🧪 **Testes automatizados**
 
 ---
 
@@ -21,165 +22,197 @@ O projeto foi pensado para ser escalável, limpo e extensível, com integração
 
 ```
 deskapp/
-├── Makefile                # Comandos de build, run e testes
-├── go.mod / go.sum         # Dependências Go
+├── Makefile
+├── go.mod / go.sum
 ├── src/
-│   ├── main.go             # Ponto de entrada da aplicação
-│   ├── app/                # Infraestrutura base para os apps
-│   ├── apps/               # Módulos da aplicação (core, dash, etc.)
-│   ├── internal/           # Pacotes internos (config, db, utils, etc.)
-│   ├── static/             # Arquivos estáticos (CSS, JS, imagens)
-│   └── templates/          # Templates HTML (com suporte a layouts)
+│   ├── main.go
+│   ├── app/
+│   ├── apps/
+│   ├── internal/
+│   ├── static/
+│   └── templates/
+│       ├── base.html
+│       ├── components/
+│       │   ├── chart.html
+│       │   └── modulo.html
+│       └── pages/
+│           ├── index.html
+│           └── about.html
 ```
 
 ---
 
 ## 🧩 Estrutura dos Apps
 
-Cada app (ex: `core`, `dash`) segue uma estrutura semelhante:
+Cada app (ex: `core`, `dash`) segue a estrutura:
 
 ```
 src/apps/<nome_do_app>/
-├── controller/             # Controladores (handlers de rota)
-├── model/                  # Modelos de dados (opcional)
-├── app.go                  # Registro do app e inicialização
-├── routes.go               # Definição de rotas
+├── controller/
+├── model/
+├── app.go
+└── routes.go
 ```
-
----
-
-## ⚙️ Requisitos
-
-- Go 1.21+
-- PostgreSQL 14+
-- `make` (para facilitar execução dos comandos)
-
----
-
-## 🧾 Configuração
-
-A configuração de conexão com o banco de dados é definida no arquivo `src/internal/config/config.go`:
-
-```go
-postgresql://postgres:123456@localhost:5432/pydata?sslmode=disable
-```
-
-Você pode alterar o host, porta, usuário e senha conforme seu ambiente.
-
----
-
-## ▶️ Como Executar
-
-### 1. Clonar o repositório
-```bash
-git clone https://github.com/seuusuario/deskapp.git
-cd deskapp
-```
-
-### 2. Rodar a aplicação
-```bash
-make run
-```
-
-O servidor será iniciado em:
-
-```
-http://localhost:8006
-```
-
-Você verá logs como:
-```
-✅ Sistema multitemplate configurado com sucesso!
-✅ Sistema de arquivos estáticos configurado em /static
-Servidor rodando em http://localhost:8006
-```
-
-### 3. Parar a aplicação
-Pressione `CTRL + C`.
 
 ---
 
 ## 🧠 Estrutura de Templates
 
-Os templates são carregados automaticamente pelo sistema **multitemplate**.  
-Cada página é composta por um layout base (`base.html`) e um conteúdo específico, por exemplo:
+O sistema **multitemplate** permite combinar **layouts**, **páginas** e **components reutilizáveis**.
 
-```
-templates/
-├── base.html
-├── index.html
-├── about.html
-└── dash/
-    └── dash_index.html
-```
-
-Exemplo de herança de layout:
+### Exemplo de Página (`about.html`)
 
 ```html
 {{ define "content" }}
   <h1>Sobre o DeskApp</h1>
   <p>Esta é a página About.</p>
+  {{ template "chart" . }}
+  {{ template "modulo" . }}
 {{ end }}
 ```
 
 ---
 
+## 🧱 Exemplos de Components
+
+### 📊 **chart.html**
+
+```html
+{{ define "chart" }}
+<div style="background-color: aliceblue;">
+    <canvas id="myChart"></canvas>
+</div>
+{{ end }}
+```
+
+Uso:
+```html
+{{ template "chart" . }}
+```
+
+---
+
+### 🧩 **modulo.html**
+
+```html
+{{ define "modulo" }}
+<div>
+    <p>{{.Modulo.Segmento}} - {{default .Modulo.Area "VAZIO"}} / {{.Modulo.Modulo}}</p>
+</div>
+{{ end }}
+```
+
+Uso:
+```html
+{{ template "modulo" . }}
+```
+
+---
+
+## 🧮 Adicionando Funções ao Template
+
+O DeskApp permite registrar **funções personalizadas** para uso direto nos templates HTML.  
+Essas funções são mapeadas em um `template.FuncMap`, definido no pacote `functemplates`.
+
+### 📁 Arquivo: `src/internal/functemplates/register.go`
+
+```go
+package functemplates
+
+import "html/template"
+
+var funcMap template.FuncMap
+
+func register(name string, fn any) {
+	funcMap[name] = fn
+}
+
+func init() {
+	funcMap = make(template.FuncMap)
+	register("default", defaultFunc)
+}
+
+func GetFuncMap() template.FuncMap {
+	return funcMap
+}
+```
+
+### 🧩 Exemplo de função (`defaultFunc`)
+
+```go
+func defaultFunc(value interface{}, fallback string) string {
+	if value == nil || value == "" {
+		return fallback
+	}
+	return fmt.Sprintf("%v", value)
+}
+```
+
+Essa função é usada no template `modulo.html`:
+
+```html
+{{ default .Modulo.Area "VAZIO" }}
+```
+
+---
+
+### ➕ Como adicionar novas funções
+
+1. **Defina a função** no mesmo pacote (`functemplates`):  
+   ```go
+   func upperCase(s string) string {
+       return strings.ToUpper(s)
+   }
+   ```
+
+2. **Registre a função** dentro do `init()`:
+   ```go
+   func init() {
+       funcMap = make(template.FuncMap)
+       register("default", defaultFunc)
+       register("upper", upperCase)
+   }
+   ```
+
+3. **Use no template**:
+   ```html
+   <p>{{ upper "deskapp" }}</p>
+   <!-- saída: DESKAPP -->
+   ```
+
+Dessa forma, qualquer função registrada pode ser usada diretamente nos templates, tornando-os muito mais expressivos e reutilizáveis.
+
+---
+
 ## 🧰 Ferramentas Internas
 
-### Criar novo app
-
-Há uma ferramenta CLI para gerar novos módulos automaticamente:
-
-```bash
-make createapp
-```
-
-Isso criará toda a estrutura básica do app (controllers, views, routes, etc.).
-
-### Mapear tabelas do banco
-
-```bash
-make tablemap
-```
+- **Criar app:** `make app`  
+- **Mapear tabelas:** `make tablemap`  
+- **Gerar DTO:** `make dto`
 
 ---
 
 ## 🧪 Testes
 
-Para rodar todos os testes:
-
 ```bash
 make test
-```
-
-Gerar relatório de cobertura:
-
-```bash
-go test ./... -coverprofile=coverage.out
-go tool cover -html=coverage.out
 ```
 
 ---
 
 ## 📦 Build
 
-Para gerar o binário da aplicação:
-
 ```bash
 make build
 ```
 
-O binário será gerado em `./bin/deskapp`.
-
----
-
+Binário gerado em `./bin/deskapp`.
 
 ---
 
 ## 🪪 Licença
 
-Este projeto é distribuído sob a licença **MIT**.  
-Consulte o arquivo `LICENSE` para mais detalhes.
+Licença **MIT** — veja `LICENSE`.
 
 ---
 

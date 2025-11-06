@@ -182,37 +182,37 @@ func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 	switch strings.ToLower(pgType) {
 	case "character varying", "varchar", "text", "character", "char", "bpchar":
 		if isNullableBool {
-			return "sql.NullString"
+			return "*string"
 		}
 		return "string"
 	case "integer", "int", "int4":
 		if isNullableBool {
-			return "sql.NullInt32"
+			return "*int32"
 		}
 		return "int"
 	case "smallint", "int2":
 		if isNullableBool {
-			return "sql.NullInt16"
+			return "*int16"
 		}
 		return "int16"
 	case "bigint", "int8":
 		if isNullableBool {
-			return "sql.NullInt64"
+			return "*int64"
 		}
 		return "int64"
 	case "boolean", "bool":
 		if isNullableBool {
-			return "sql.NullBool"
+			return "*bool"
 		}
 		return "bool"
 	case "numeric", "decimal", "real", "float4", "double precision", "float8":
 		if isNullableBool {
-			return "sql.NullFloat64"
+			return "*float64"
 		}
 		return "float64"
 	case "timestamp", "timestamp without time zone", "timestamp with time zone", "date", "time":
 		if isNullableBool {
-			return "sql.NullTime"
+			return "*time.Time"
 		}
 		return "time.Time"
 	case "json", "jsonb":
@@ -222,7 +222,7 @@ func mapPostgresTypeToGoType(pgType string, isNullable string) string {
 		return "json.RawMessage"
 	case "uuid":
 		if isNullableBool {
-			return "sql.NullString"
+			return "*string"
 		}
 		return "string"
 	default:

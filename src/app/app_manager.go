@@ -4,6 +4,7 @@ package app
 import (
 	"deskapp/src/internal/config"
 	"deskapp/src/internal/utils"
+	functemplates "deskapp/src/internal/utils/func_templates"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -59,6 +60,7 @@ func NewAppManager(logger *utils.Logger, cfg *config.Config, staticFS fs.FS, tem
 func (am *AppManager) setupMultiTemplates() {
 	// Cria o renderizador multitemplate
 	render := multitemplate.NewRenderer()
+	
 	am.router.HTMLRender = render
 
 	if am.templateFS == nil {
@@ -70,7 +72,7 @@ func (am *AppManager) setupMultiTemplates() {
 		am.logger.Info("Iniciando carregamento de templates com multitemplate...")
 	}
 	// Carrega templates usando o padrão de layouts e includes
-	am.loadTemplatesFromFS(render)
+	am.loadTemplatesFromFS(render, functemplates.GetFuncMap())
 
 	// Define o renderizador no router
 	am.router.HTMLRender = render
@@ -80,7 +82,7 @@ func (am *AppManager) setupMultiTemplates() {
 	}
 }
 
-func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
+func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer, fn template.FuncMap) {
 	var templateFiles []string
 	err := fs.WalkDir(am.templateFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -135,7 +137,7 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer) {
 	}
 
 	// 2. Carrega todos os Layouts e Componentes UMA ÚNICA VEZ
-	baseTemplate, err := template.New("base").ParseFS(am.templateFS, baseLayoutFile)
+	baseTemplate, err := template.New("base").Funcs(fn).ParseFS(am.templateFS, baseLayoutFile)
 	if err != nil {
 		am.logger.Errorf("❌ Erro ao parsear template base '%s': %v", baseLayoutFile, err)
 		return
