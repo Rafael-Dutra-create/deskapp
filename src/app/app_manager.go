@@ -2,7 +2,6 @@
 package app
 
 import (
-	"deskapp/src/apps/core/middleware"
 	"deskapp/src/internal/config"
 	"deskapp/src/internal/utils"
 	functemplates "deskapp/src/internal/utils/func_templates"
@@ -38,7 +37,7 @@ func NewAppManager(logger *utils.Logger, cfg *config.Config, staticFS fs.FS, tem
 
 	router := gin.New()
 
-	router.Use(middleware.Recover)
+	router.Use(gin.Recovery())
 	router.Use(gin.Logger())
 
 	am := &AppManager{

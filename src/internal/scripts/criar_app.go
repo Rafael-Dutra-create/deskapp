@@ -344,7 +344,6 @@ const controllerTemplate = `package controller
 import (
 	"deskapp/src/app"
 	"deskapp/src/apps/core/controller"
-	"deskapp/src/apps/core/view"
 	"net/http"
 	
 	"github.com/gin-gonic/gin"
@@ -354,7 +353,7 @@ type {{.UpperName}}Controller struct {
 	*controller.BaseController
 }
 
-func New{{.UpperName}}Controller(app app.AppInterface, view *view.View) *{{.UpperName}}Controller {
+func New{{.UpperName}}Controller(app app.AppInterface) *{{.UpperName}}Controller {
 	base := controller.NewBaseController(app, "{{.LowerName}} controller")
 	return &{{.UpperName}}Controller{
 		BaseController: base,
@@ -402,8 +401,6 @@ func (a *{{.UpperName}}App) RegisterRoutes(router *gin.Engine) {
 }
 `
 
-// ATUALIZADO:
-// - Recebe *config.Config em vez de utils.MODE
 // - Passa cfg para NewBaseApp
 const appTemplate = `package {{.LowerName}}
 
@@ -432,7 +429,7 @@ func (a *{{.UpperName}}App) Initialize() error {
 
 func (a *{{.UpperName}}App) GetControllers() []interface{} {
     return []interface{}{
-       controller.New{{.UpperName}}Controller(a, a.View),
+       controller.New{{.UpperName}}Controller(a),
     }
 }
 `

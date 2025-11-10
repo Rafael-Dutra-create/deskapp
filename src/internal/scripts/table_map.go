@@ -373,8 +373,7 @@ import (
 type I{{.ModelName}}QueryBuilder = repository.IQueryBuilder[entities.{{.ModelName}}, *entities.{{.ModelName}}]
 
 type I{{.ModelName}}Repository interface {
-	// Where retorna o QueryBuilder específico.
-	Where(ctx context.Context, queryFragment string, arg any) I{{.ModelName}}QueryBuilder
+	repository.IBaseRepository[entities.{{.ModelName}}, *entities.{{.ModelName}}]
 }
 `
 	ifaceFilePath := filepath.Join(targetPath, "interface.go")
