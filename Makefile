@@ -56,6 +56,15 @@ tablemap:
 dto:
 	@echo "🗺️ Mapeando tabela para struct..."
 	go run $(SCRIPTS_DIR) create-dto
+
+migrate-up:
+	go run $(SCRIPTS_DIR) migrate up
+
+migrate-down:
+	go run $(SCRIPTS_DIR) migrate down
+
+migrate-status:
+	go run $(SCRIPTS_DIR) migrate status
 	
 
 
@@ -105,17 +114,20 @@ help:
 	@echo "DeskApp - Makefile Commands"
 	@echo ""
 	@echo "Comandos disponíveis:"
-	@echo "  run           - Executar a aplicação (go run ./src)"
-	@echo "  createapp     - Criar um novo app (go run ./src/internal/cmd/createapp)"
-	@echo "  tablemap      - Criar um novo model (go run ./src/internal/cmd/createapp)"
-	@echo "  deps          - Instalar/atualizar dependências"
-	@echo "  build         - Build da aplicação"
-	@echo "  clean         - Limpar binários"
-	@echo "  dev           - Desenvolvimento com auto-reload (air)"
-	@echo "  test          - Executar testes"
-	@echo "  fmt           - Verificar formatação do código"
-	@echo "  lint          - Executar linter"
-	@echo "  help          - Mostrar esta ajuda"
+	@echo "  run             
+	@echo "  createapp       
+	@echo "  tablemap        
+	@echo "  migrate-up      
+	@echo "  migrate-down    
+	@echo "  migrate-status  
+	@echo "  deps          
+	@echo "  build         
+	@echo "  clean         
+	@echo "  dev           
+	@echo "  test          
+	@echo "  fmt           
+	@echo "  lint          
+	@echo "  help          
 	@echo ""
 	@echo "Exemplos:"
 	@echo "  make run"
