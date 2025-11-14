@@ -114,20 +114,20 @@ help:
 	@echo "DeskApp - Makefile Commands"
 	@echo ""
 	@echo "Comandos disponíveis:"
-	@echo "  run             
-	@echo "  createapp       
-	@echo "  tablemap        
-	@echo "  migrate-up      
-	@echo "  migrate-down    
-	@echo "  migrate-status  
-	@echo "  deps          
-	@echo "  build         
-	@echo "  clean         
-	@echo "  dev           
-	@echo "  test          
-	@echo "  fmt           
-	@echo "  lint          
-	@echo "  help          
+	@echo "  run             "
+	@echo "  createapp       "
+	@echo "  tablemap        "
+	@echo "  migrate-up      "
+	@echo "  migrate-down    "
+	@echo "  migrate-status  "
+	@echo "  deps          "
+	@echo "  build         "
+	@echo "  clean         "
+	@echo "  dev           "
+	@echo "  test          "
+	@echo "  fmt           "
+	@echo "  lint          "
+	@echo "  help          "
 	@echo ""
 	@echo "Exemplos:"
 	@echo "  make run"
