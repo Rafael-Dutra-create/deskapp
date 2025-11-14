@@ -156,7 +156,7 @@ func (s *CreateDTOScript) Execute(args []string) error {
 		var sb strings.Builder
 
 		// Define o pacote (usando o nome do app)
-		sb.WriteString(fmt.Sprintf("package %s\n\n", packageName))
+		sb.WriteString("package dto\n")
 		// Define a struct (usando o nome Go + "DTO")
 		sb.WriteString(fmt.Sprintf("type %sDTO struct {\n", goDtoName))
 		sb.WriteString(newFieldsString) // Adiciona os campos gerados
