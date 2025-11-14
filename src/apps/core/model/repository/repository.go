@@ -9,6 +9,15 @@ import (
 	"strings"
 )
 
+
+type IBaseRepository[T any, P interface { *T; entities.Entity }] interface {
+	GetDB() *sql.DB
+	Where(ctx context.Context, queryFragment string, arg any) IQueryBuilder[T, P]
+	Insert(ctx context.Context, entity P) error
+	Update(ctx context.Context, entity P) error
+	Delete(ctx context.Context, entity P) error 
+}
+
 type BaseRepository[T any, P interface { *T; entities.Entity }] struct {
 	db     *sql.DB // Voltamos ao sql.DB padrão!
 	table  string

@@ -60,7 +60,7 @@ func NewAppManager(logger *utils.Logger, cfg *config.Config, staticFS fs.FS, tem
 func (am *AppManager) setupMultiTemplates() {
 	// Cria o renderizador multitemplate
 	render := multitemplate.NewRenderer()
-	
+
 	am.router.HTMLRender = render
 
 	if am.templateFS == nil {
@@ -177,6 +177,45 @@ func (am *AppManager) loadTemplatesFromFS(render multitemplate.Renderer, fn temp
 		render.Add(name, pageTemplate)
 		templateCount++
 	}
+
+	am.logger.Infof("🎉 Total de %d páginas registradas com sucesso!", templateCount)
+
+    // 4. Registra os componentes como templates independentes (para parciais/HTMX)
+    if am.cfg.GetMode() == utils.DEBUG {
+        am.logger.Info("📊 Registrando componentes como templates parciais...")
+    }
+    componentCount := 0
+    for _, componentFile := range components {
+        // Gera o nome do template a partir do nome do arquivo
+        name := strings.TrimSuffix(filepath.Base(componentFile), ".html")
+        name = strings.TrimSuffix(name, ".tmpl")
+
+        // Cria um NOVO template (NÃO um clone do base)
+        // Adiciona o FuncMap
+        componentTemplate, err := template.New(name).Funcs(fn).ParseFS(am.templateFS, componentFile)
+        if err != nil {
+            am.logger.Errorf("❌ Erro ao parsear componente parcial %s (%s): %v", name, componentFile, err)
+            continue
+        }
+
+        // **Opcional, mas recomendado:**
+        // Para que um componente possa chamar outro (ex: {{ template "outro-componente" }})
+        // faça o parse de *todos* os componentes neste template também.
+        if len(components) > 0 {
+            _, err = componentTemplate.ParseFS(am.templateFS, components...)
+            if err != nil {
+                am.logger.Errorf("❌ Erro ao parsear componentes aninhados para %s: %v", name, err)
+            }
+        }
+
+        // Adiciona o componente ao renderizador com seu próprio nome
+        render.Add(name, componentTemplate)
+        componentCount++
+    }
+
+    if am.cfg.GetMode() == utils.DEBUG {
+        am.logger.Infof("🎉 Total de %d componentes (parciais) registrados!", componentCount)
+    }
 
 	// am.logger.Infof("🎉 Total de %d páginas registradas com sucesso!", templateCount)
 }
