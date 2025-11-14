@@ -17,6 +17,7 @@ func registerScripts() {
     Register(&CreateAppScript{})
     Register(&TableMapScript{})
     Register(&CreateDTOScript{})
+    Register(&MigrationManager{})
 }
 var logger *utils.Logger
 
